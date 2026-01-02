@@ -1,15 +1,16 @@
 import SwiftUI
+
 struct MainDashboardView: View {
     @StateObject private var viewModel = HabitListViewModel()
     @State private var isShowingAddSheet = false
     
     var body: some View {
         VStack(spacing: 0) {
-            // 1. Heatmap Sektion
+            // Heatmap (Oberes Drittel)
             HeatmapGridView(data: viewModel.heatmapData)
                 .frame(maxHeight: UIScreen.main.bounds.height * 0.33)
-            
-            // 2. Dezentes schwarzes Plus direkt unter der Heatmap
+
+            // Schwarzes Plus direkt unter der Heatmap
             HStack {
                 Button(action: { isShowingAddSheet = true }) {
                     Image(systemName: "plus")
@@ -19,9 +20,10 @@ struct MainDashboardView: View {
                 }
                 Spacer()
             }
-            .padding(.vertical, 10)
-            
-            // 3. Die dynamische Liste
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+
+            // Dynamische Liste
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(viewModel.habits) { habit in

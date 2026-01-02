@@ -12,6 +12,6 @@ struct Habit: Identifiable {
     var currentValue: Double
     var goalValue: Double
     var unit: String
-    var frequency: Set<Int> // 1=Mo, 7=So
+    var frequency: Set<Int>
     var category: String
 }

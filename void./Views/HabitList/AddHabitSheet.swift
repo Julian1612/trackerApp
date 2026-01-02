@@ -62,7 +62,7 @@ struct AddHabitSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Speichern") {
-                        viewModel.addHabit(title: title, emoji: emoji, type: selectedType, goal: goal, unit: unit, days: selectedDays, category: category, time: reminderEnabled ? reminderTime : nil)
+                        viewModel.addHabit(title: title, emoji: emoji, type: selectedType, goal: goal, unit: unit, days: selectedDays, category: category)
                         dismiss()
                     }.foregroundColor(.black)
                 }

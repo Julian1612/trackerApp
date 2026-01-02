@@ -22,7 +22,7 @@ struct HabitIconComponent: View {
                     .rotationEffect(.degrees(-90))
             }
             
-            Image(systemName: habit.iconName)
+            Image(systemName: habit.emoji)
                 .font(.system(size: 14))
         }
         .frame(width: 36, height: 36)

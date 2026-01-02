@@ -23,8 +23,17 @@ struct AddHabitRow: View {
                 .font(Typography.habitTitle)
                 .focused($isFocused)
                 .onSubmit {
+                    // In AddHabitRow.swift beim onSubmit:
                     if !title.isEmpty {
-                        viewModel.addHabit(title: title, icon: "checkmark.circle", type: .checkmark, goal: 1, unit: "times")
+                        viewModel.addHabit(
+                            title: title,
+                            emoji: "🚀",
+                            type: .checkmark,
+                            goal: 1,
+                            unit: "✓",
+                            days: [1,2,3,4,5,6,7],
+                            category: "General"
+                        )
                         title = ""
                         isFocused = false
                     }
