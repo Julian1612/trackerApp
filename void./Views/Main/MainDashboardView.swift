@@ -1,46 +1,46 @@
 import SwiftUI
+
 struct MainDashboardView: View {
     @StateObject private var viewModel = HabitListViewModel()
-    @State private var showingAddSheet = false // State für das Modal
-    
-    let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 20)
+    @State private var isShowingAddSheet = false
     
     var body: some View {
         GeometryReader { proxy in
-            let totalHeight = proxy.size.height
-            ZStack(alignment: .bottomTrailing) { // ZStack für den Button
-                VStack(spacing: 0) {
-                    // Heatmap (Oberes Drittel)
-                    ScrollView(.vertical, showsIndicators: false) {
-                        HeatmapGridView(data: viewModel.heatmapData)
-                    }
-                    .frame(height: totalHeight * 0.33)
+            VStack(spacing: 0) {
+                // Heatmap Sektion (Oberes Drittel)
+                ScrollView(.vertical, showsIndicators: false) {
+                    HeatmapGridView(data: viewModel.heatmapData)
+                }
+                .frame(height: proxy.size.height * 0.33)
 
-                    // Habit Liste (Untere zwei Drittel)
-                    List(viewModel.habits) { habit in
-                        HabitRowView(habit: habit)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(ColorPalette.background)
+                // Dezentes schwarzes Plus direkt unter der Heatmap
+                HStack {
+                    Button(action: { isShowingAddSheet = true }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 22, weight: .light))
+                            .foregroundColor(.black) // Jetzt in Schwarz
+                            .padding(.leading, 20)
                     }
-                    .listStyle(.plain)
-                    .frame(height: totalHeight * 0.67)
+                    Spacer()
                 }
-                
-                // Minimalistischer Plus-Button
-                Button(action: { showingAddSheet = true }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 24, weight: .light))
-                        .foregroundColor(.white)
-                        .frame(width: 56, height: 56)
-                        .background(Color.black)
-                        .clipShape(Circle())
-                        .shadow(radius: 4)
+                .padding(.top, 5) // Höher platziert direkt unter der Heatmap
+                .padding(.bottom, 10)
+
+                // Habit Liste (Restliche zwei Drittel)
+                // Wir nutzen ScrollView + ForEach für maximale Kontrolle über das Design
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(viewModel.habits) { habit in
+                            HabitRowView(habit: habit)
+                                .padding(.horizontal)
+                        }
+                    }
                 }
-                .padding(24)
+                .frame(maxHeight: .infinity)
             }
             .background(ColorPalette.background.ignoresSafeArea())
-            .sheet(isPresented: $showingAddSheet) {
-                AddHabitView(viewModel: viewModel)
+            .sheet(isPresented: $isShowingAddSheet) {
+                AddHabitSheet(viewModel: viewModel)
             }
         }
     }
