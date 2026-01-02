@@ -7,27 +7,24 @@ struct MainDashboardView: View {
     var body: some View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
-                // Heatmap Sektion (Oberes Drittel)
-                ScrollView(.vertical, showsIndicators: false) {
-                    HeatmapGridView(data: viewModel.heatmapData)
-                }
-                .frame(height: proxy.size.height * 0.33)
-
-                // Dezentes schwarzes Plus direkt unter der Heatmap
+                // 1. Heatmap Sektion (Oberes Drittel)
+                HeatmapGridView(data: viewModel.heatmapData)
+                    .frame(height: proxy.size.height * 0.33)
+                
+                // 2. Interaktions-Bereich direkt unter der Heatmap
                 HStack {
                     Button(action: { isShowingAddSheet = true }) {
                         Image(systemName: "plus")
                             .font(.system(size: 22, weight: .light))
-                            .foregroundColor(.black) // Jetzt in Schwarz
+                            .foregroundColor(.black)
                             .padding(.leading, 20)
                     }
                     Spacer()
                 }
-                .padding(.top, 5) // Höher platziert direkt unter der Heatmap
-                .padding(.bottom, 10)
-
-                // Habit Liste (Restliche zwei Drittel)
-                // Wir nutzen ScrollView + ForEach für maximale Kontrolle über das Design
+                .padding(.top, 4) // Minimaler Abstand zur Heatmap
+                .padding(.bottom, 8)
+                
+                // 3. Die Habit Liste beginnt direkt unter dem Plus
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(viewModel.habits) { habit in
@@ -36,9 +33,8 @@ struct MainDashboardView: View {
                         }
                     }
                 }
-                .frame(maxHeight: .infinity)
             }
-            .background(ColorPalette.background.ignoresSafeArea())
+            .background(Color.white.ignoresSafeArea())
             .sheet(isPresented: $isShowingAddSheet) {
                 AddHabitSheet(viewModel: viewModel)
             }
