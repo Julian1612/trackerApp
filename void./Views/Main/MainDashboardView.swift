@@ -5,57 +5,89 @@ struct MainDashboardView: View {
     @State private var isShowingAddSheet = false
     @State private var habitToEdit: Habit?
     
-    // State für den aktuell gewählten Tab (Standard: "Alle")
     @State private var selectedCategory: String = "Alle"
+    
+    // Hilfs-Array für die Routine-Buttons
+    let routines: [RoutineTime] = [.morning, .day, .evening, .any]
 
     var body: some View {
         VStack(spacing: 0) {
             // 1. Heatmap
-            HeatmapGridView(data: viewModel.heatmapData)
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.33)
+            GeometryReader { proxy in
+                HeatmapGridView(data: viewModel.heatmapData)
+                    .frame(maxHeight: proxy.size.height * 0.33)
+            }
+            .frame(height: 300) // Provide a reasonable fixed container height; adjust as needed
 
-            // 2. Toolbar: Plus-Button + Kategorie Tabs
-            HStack(spacing: 12) {
-                // Der Plus-Button (Links fixiert)
-                Button(action: { isShowingAddSheet = true }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .light))
-                        .foregroundColor(.black)
-                        .padding(10) // Größere Touch-Area
-                        .background(Color.white)
-                }
-                
-                // Die Tabs (Rechts scrollbar)
+            // 2. Toolbar-Bereich
+            VStack(spacing: 12) {
+                // A) NEU: Routine-Wahl (Morgen, Tag, Abend) - an der rot markierten Stelle
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(viewModel.categories, id: \.self) { category in
+                    HStack(spacing: 12) {
+                        ForEach(routines, id: \.self) { routine in
                             Button(action: {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedCategory = category
+                                withAnimation {
+                                    viewModel.selectedRoutineTime = routine
+                                    selectedCategory = "Alle" // Reset Kategorie bei Zeitwechsel
                                 }
                             }) {
-                                Text(category)
-                                    .font(.system(size: 13, weight: selectedCategory == category ? .bold : .medium))
-                                    .foregroundColor(selectedCategory == category ? .white : .black)
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 14)
+                                Text(routine.rawValue)
+                                    .font(.system(size: 14, weight: viewModel.selectedRoutineTime == routine ? .bold : .medium))
+                                    .foregroundColor(viewModel.selectedRoutineTime == routine ? .white : .black)
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 16)
                                     .background(
+                                        // Aktiver Tab ist schwarz, andere transparent mit Border
                                         Capsule()
-                                            .fill(selectedCategory == category ? Color.black : Color.gray.opacity(0.1))
+                                            .fill(viewModel.selectedRoutineTime == routine ? Color.black : Color.white)
+                                            .overlay(
+                                                Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                            )
                                     )
                             }
                         }
                     }
-                    .padding(.trailing, 20) // Padding rechts damit man den letzten Tab sieht
+                    .padding(.horizontal, 15)
                 }
-            }
-            .padding(.leading, 15) // Abstand vom linken Rand
-            .padding(.top, 4)
-            .padding(.bottom, 8)
+                .padding(.top, 10)
 
-            // 3. Habit Liste (Gefiltert)
+                // B) Bestehend: Plus + Kategorien (Unterkategorien)
+                HStack(spacing: 12) {
+                    Button(action: { isShowingAddSheet = true }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .light))
+                            .foregroundColor(.black)
+                            .padding(8)
+                            .background(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(viewModel.categories, id: \.self) { category in
+                                Button(action: {
+                                    withAnimation { selectedCategory = category }
+                                }) {
+                                    Text(category)
+                                        .font(.system(size: 13, weight: selectedCategory == category ? .bold : .medium))
+                                        .foregroundColor(selectedCategory == category ? .black : .gray)
+                                        .padding(.vertical, 6)
+                                        .padding(.horizontal, 12)
+                                        .background(
+                                            // Kategorie-Tabs sind jetzt dezenter (Grau/Weiß)
+                                            Capsule()
+                                                .fill(selectedCategory == category ? Color.gray.opacity(0.1) : Color.clear)
+                                        )
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 15)
+            }
+            .padding(.bottom, 10)
+
+            // 3. Habit Liste (Doppelt gefiltert)
             List {
-                // Wir nutzen die Filter-Funktion aus dem ViewModel
                 ForEach(viewModel.habits(for: selectedCategory)) { habit in
                     HabitRowView(habit: habit, viewModel: viewModel)
                         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
@@ -79,6 +111,10 @@ struct MainDashboardView: View {
         }
         .sheet(item: $habitToEdit) { habit in
             AddHabitSheet(viewModel: viewModel, editingHabit: habit)
+        }
+        // Beim App-Start (wenn die View erscheint) Zeit prüfen
+        .onAppear {
+            viewModel.determineCurrentRoutineTime()
         }
     }
 }

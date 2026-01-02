@@ -3,22 +3,21 @@ import SwiftUI
 struct AddHabitSheet: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: HabitListViewModel
-    
     var editingHabit: Habit?
 
-    // States
     @State private var title = ""
     @State private var emoji = "🎯"
     @State private var selectedType: HabitType = .checkmark
     @State private var goal = 1.0
     @State private var unit = "min"
     @State private var category = "Allgemein"
-    
-    // Neue States für erweiterte Einstellungen
     @State private var recurrence: HabitRecurrence = .daily
     @State private var selectedDays: Set<Int> = [1, 2, 3, 4, 5, 6, 7]
     @State private var reminderTime = Date()
     @State private var notificationEnabled = false
+    
+    // NEU: Tageszeit-Auswahl
+    @State private var routineTime: RoutineTime = .any
     
     @State private var showDeleteAlert = false
 
@@ -35,19 +34,19 @@ struct AddHabitSheet: View {
             _goal = State(initialValue: habit.goalValue)
             _unit = State(initialValue: habit.unit)
             _category = State(initialValue: habit.category)
-            
-            // Neue Werte laden
             _recurrence = State(initialValue: habit.recurrence)
             _selectedDays = State(initialValue: habit.frequency)
             _reminderTime = State(initialValue: habit.reminderTime ?? Date())
             _notificationEnabled = State(initialValue: habit.notificationEnabled)
+            
+            // Tageszeit laden
+            _routineTime = State(initialValue: habit.routineTime)
         }
     }
 
     var body: some View {
         NavigationView {
             Form {
-                // Sektion 1: Basics
                 Section(header: Text("Basics").foregroundColor(.black)) {
                     HStack {
                         TextField("Emoji", text: $emoji).frame(width: 45).multilineTextAlignment(.center)
@@ -56,16 +55,25 @@ struct AddHabitSheet: View {
                     }
                 }
                 
-                // Sektion 2: Zeitplan (Neu)
+                // NEU: Zuweisung zur Routine
+                Section(header: Text("Zuordnung").foregroundColor(.black)) {
+                    Picker("Tageszeit", selection: $routineTime) {
+                        ForEach(RoutineTime.allCases) { time in
+                            Text(time.rawValue).tag(time)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    
+                    TextField("Kategorie (z.B. Sport)", text: $category)
+                }
+                
                 Section(header: Text("Wann?").foregroundColor(.black)) {
                     Picker("Wiederholung", selection: $recurrence) {
                         ForEach(HabitRecurrence.allCases) { type in
                             Text(type.rawValue).tag(type)
                         }
                     }
-                    .pickerStyle(.segmented)
                     
-                    // Wochentage nur anzeigen wenn "Wöchentlich" gewählt ist
                     if recurrence == .weekly {
                         HStack {
                             ForEach(1...7, id: \.self) { day in
@@ -81,21 +89,9 @@ struct AddHabitSheet: View {
                                     }
                             }
                         }
-                        .padding(.vertical, 5)
                     }
                 }
                 
-                // Sektion 3: Benachrichtigungen (Neu)
-                Section(header: Text("Reminder").foregroundColor(.black)) {
-                    Toggle("Benachrichtigung senden", isOn: $notificationEnabled)
-                        .tint(.black)
-                    
-                    if notificationEnabled {
-                        DatePicker("Uhrzeit", selection: $reminderTime, displayedComponents: .hourAndMinute)
-                    }
-                }
-                
-                // Sektion 4: Ziel
                 Section(header: Text("Ziel").foregroundColor(.black)) {
                     Picker("Typ", selection: $selectedType) {
                         Text("Check").tag(HabitType.checkmark)
@@ -112,15 +108,10 @@ struct AddHabitSheet: View {
                     }
                 }
                 
-                Section {
-                    TextField("Kategorie (z.B. Health)", text: $category)
-                }
-                
-                // Löschen Button
                 if editingHabit != nil {
                     Section {
                         Button(action: { showDeleteAlert = true }) {
-                            Text("Routine löschen").foregroundColor(.red).frame(maxWidth: .infinity, alignment: .center)
+                            Text("Routine löschen").foregroundColor(.red)
                         }
                     }
                 }
@@ -137,14 +128,13 @@ struct AddHabitSheet: View {
                 }
             }
             .alert("Löschen?", isPresented: $showDeleteAlert) {
-                Button("Abbrechen", role: .cancel) { }
                 Button("Löschen", role: .destructive) {
                     if let habit = editingHabit {
                         viewModel.deleteHabit(habit)
                         dismiss()
                     }
                 }
-            } message: { Text("Daten gehen verloren.") }
+            }
         }
     }
 
@@ -156,13 +146,12 @@ struct AddHabitSheet: View {
             updated.type = selectedType
             updated.goalValue = goal
             updated.unit = selectedType == .checkmark ? "✓" : unit
-            
-            // Neue Felder updaten
             updated.recurrence = recurrence
             updated.frequency = selectedDays
             updated.reminderTime = reminderTime
             updated.notificationEnabled = notificationEnabled
             updated.category = category
+            updated.routineTime = routineTime // Update Routine
             
             viewModel.updateHabit(updated)
         } else {
@@ -176,7 +165,8 @@ struct AddHabitSheet: View {
                 days: selectedDays,
                 time: reminderTime,
                 notifications: notificationEnabled,
-                category: category
+                category: category,
+                routineTime: routineTime // Save Routine
             )
         }
         dismiss()
