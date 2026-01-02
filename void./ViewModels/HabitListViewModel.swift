@@ -6,11 +6,22 @@ class HabitListViewModel: ObservableObject {
     @Published var heatmapData: [Double] = []
 
     init() {
-        // Initial-Daten für das Grid-Design
         self.heatmapData = (0..<200).map { _ in Double.random(in: 0...1) }
     }
 
-    // Die Logik für das schnelle Interagieren
+    // Funktion zum Löschen eines Habits
+    func deleteHabit(_ habit: Habit) {
+        withAnimation {
+            habits.removeAll { $0.id == habit.id }
+        }
+    }
+
+    func updateHabit(_ updatedHabit: Habit) {
+        if let index = habits.firstIndex(where: { $0.id == updatedHabit.id }) {
+            habits[index] = updatedHabit
+        }
+    }
+
     func incrementHabit(_ habit: Habit) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             if habits[index].type == .checkmark {

@@ -6,7 +6,6 @@ struct HabitRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Button für das Icon – KEIN $ vor viewModel!
             Button(action: {
                 viewModel.incrementHabit(habit)
             }) {
@@ -23,10 +22,10 @@ struct HabitRowView: View {
             
             Spacer()
             
-            // Status-Anzeige
             Text(habit.type == .checkmark ? (habit.currentValue >= 1 ? "✓" : "") : "\(Int(habit.currentValue)) \(habit.unit)")
                 .font(Typography.statusValue)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4) // Reduziert für engeres Layout
+        .contentShape(Rectangle()) // Macht die ganze Zeile klickbar/swipebar
     }
 }
