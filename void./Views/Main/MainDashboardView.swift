@@ -5,7 +5,7 @@ struct MainDashboardView: View {
     @State private var isShowingAddSheet = false
     @State private var habitToEdit: Habit?
     
-    // Optional: Log Sheet für Taps
+    // Für das Log-Sheet (optional, wenn man tippt)
     @State private var habitToLog: Habit?
     
     @State private var selectedCategory: String = "Alle"
@@ -15,20 +15,22 @@ struct MainDashboardView: View {
     var body: some View {
         VStack(spacing: 0) {
             
-            // Header
+            // --- HEADER ---
             VStack(alignment: .leading, spacing: 12) {
                 Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
                     .font(.system(size: 24, weight: .bold))
-                    .padding(.leading, 4)
+                    .padding(.leading, 16)
+                    .padding(.top, 10)
                 
                 HeatmapGridView(data: viewModel.heatmapData)
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 10)
             }
-            .padding(.horizontal)
-            .padding(.top, 20)
+            .background(Color.white)
 
-            // Toolbar
+            // --- TOOLBAR ---
             VStack(spacing: 12) {
+                // Routine Tabs
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(routines, id: \.self) { routine in
@@ -51,15 +53,16 @@ struct MainDashboardView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 15)
+                    .padding(.horizontal, 16)
                 }
 
+                // Plus & Kategorien
                 HStack(spacing: 12) {
                     Button(action: { isShowingAddSheet = true }) {
                         Image(systemName: "plus")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.black)
-                            .padding(10)
+                            .frame(width: 40, height: 40)
                             .background(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
                     }
                     
@@ -83,11 +86,12 @@ struct MainDashboardView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 15)
+                .padding(.horizontal, 16)
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, 15)
+            .background(Color.white)
 
-            // List
+            // --- HABIT LISTE ---
             List {
                 let currentHabits = viewModel.habits(for: selectedCategory)
                 
@@ -96,15 +100,15 @@ struct MainDashboardView: View {
                         habit: habit,
                         viewModel: viewModel,
                         onEdit: {
-                            // HIER: Öffnet das volle Bearbeitungs-Menü
-                            // Da ist dann auch der Löschen-Button drin.
+                            // Öffnet das Edit Sheet
                             habitToEdit = habit
                         }
                     )
+                    // Wichtig: List Styling entfernen, damit unsere Row die Kontrolle hat
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
-                    // Optional: Tap öffnet Log-Sheet
                     .onTapGesture {
+                        // Optional: Tippen öffnet das detaillierte Log-Sheet
                         if habit.type != .checkmark {
                             habitToLog = habit
                         } else {
@@ -117,8 +121,11 @@ struct MainDashboardView: View {
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden) // Grauen Hintergrund der List entfernen
         }
         .background(Color.white.ignoresSafeArea())
+        
+        // Sheets
         .sheet(isPresented: $isShowingAddSheet) {
             AddHabitSheet(viewModel: viewModel)
         }

@@ -5,25 +5,26 @@ class HabitListViewModel: ObservableObject {
     @Published var habits: [Habit] = []
     @Published var heatmapData: [Double] = []
     
-    // Start-Wert auf Morning
+    // Default auf .morning setzen (da .any entfernt wurde)
     @Published var selectedRoutineTime: RoutineTime = .morning
     
     var morningStartHour = 5
     var dayStartHour = 11
     var eveningStartHour = 18
 
-    // Kategorien sind GLOBAL
     var categories: [String] {
-        let allCategories = Set(habits.map { $0.category })
+        let relevantHabits = habits.filter {
+            $0.routineTime == selectedRoutineTime
+        }
+        let allCategories = Set(relevantHabits.map { $0.category })
         return ["Alle"] + Array(allCategories).sorted()
     }
 
     init() {
         var history = Array(repeating: 0.0, count: 199)
-        history.append(0.0)
+        history.append(0.0) // Heute
         self.heatmapData = history
         determineCurrentRoutineTime()
-        calculateTodayScore()
     }
     
     func determineCurrentRoutineTime() {
@@ -38,15 +39,20 @@ class HabitListViewModel: ObservableObject {
     }
     
     func habits(for category: String) -> [Habit] {
+        let timeFiltered = habits.filter {
+            $0.routineTime == selectedRoutineTime
+        }
+        
         if category == "Alle" {
-            return habits.filter { $0.routineTime == selectedRoutineTime }
+            return timeFiltered
         } else {
-            return habits.filter { $0.category == category }
+            return timeFiltered.filter { $0.category == category }
         }
     }
 
     // --- ACTIONS ---
 
+    // Fortschritt hinzufügen (für Slider)
     func logProgress(for habit: Habit, value: Double) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index].currentValue += value
@@ -54,6 +60,7 @@ class HabitListViewModel: ObservableObject {
         }
     }
     
+    // Habit komplett abschließen
     func completeHabit(_ habit: Habit) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index].currentValue = habits[index].goalValue
@@ -61,34 +68,12 @@ class HabitListViewModel: ObservableObject {
         }
     }
     
-    // 🆕 RESET: Setzt den Wert auf 0
+    // 🆕 RESET: Setzt den Wert hart auf 0
     func resetHabit(_ habit: Habit) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index].currentValue = 0
             calculateTodayScore()
         }
-    }
-    
-    // Reorder
-    func moveHabit(from source: IndexSet, to destination: Int, currentVisibleHabits: [Habit]) {
-        let itemsToMove = source.map { currentVisibleHabits[$0] }
-        for item in itemsToMove {
-            if let index = habits.firstIndex(where: { $0.id == item.id }) {
-                habits.remove(at: index)
-            }
-        }
-        var insertIndex = habits.count
-        if destination < currentVisibleHabits.count {
-            let targetItem = currentVisibleHabits[destination]
-            if let targetGlobalIndex = habits.firstIndex(where: { $0.id == targetItem.id }) {
-                insertIndex = targetGlobalIndex
-            }
-        } else if let lastVisibleItem = currentVisibleHabits.last,
-                  let lastGlobalIndex = habits.firstIndex(where: { $0.id == lastVisibleItem.id }) {
-            insertIndex = lastGlobalIndex + 1
-        }
-        insertIndex = min(insertIndex, habits.count)
-        habits.insert(contentsOf: itemsToMove, at: insertIndex)
     }
     
     // --- SCORE & CRUD ---
@@ -169,5 +154,30 @@ class HabitListViewModel: ObservableObject {
                 self.calculateTodayScore()
             }
         }
+    }
+    
+    // Hilfsfunktion für Drag & Drop
+    func moveHabit(from source: IndexSet, to destination: Int, currentVisibleHabits: [Habit]) {
+        let itemsToMove = source.map { currentVisibleHabits[$0] }
+        
+        for item in itemsToMove {
+            if let index = habits.firstIndex(where: { $0.id == item.id }) {
+                habits.remove(at: index)
+            }
+        }
+        
+        var insertIndex = habits.count
+        if destination < currentVisibleHabits.count {
+            let targetItem = currentVisibleHabits[destination]
+            if let targetGlobalIndex = habits.firstIndex(where: { $0.id == targetItem.id }) {
+                insertIndex = targetGlobalIndex
+            }
+        } else if let lastVisibleItem = currentVisibleHabits.last,
+                  let lastGlobalIndex = habits.firstIndex(where: { $0.id == lastVisibleItem.id }) {
+            insertIndex = lastGlobalIndex + 1
+        }
+        
+        insertIndex = min(insertIndex, habits.count)
+        habits.insert(contentsOf: itemsToMove, at: insertIndex)
     }
 }
