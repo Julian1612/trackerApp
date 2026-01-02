@@ -16,7 +16,7 @@ struct AddHabitSheet: View {
     @State private var reminderTime = Date()
     @State private var notificationEnabled = false
     
-    // 🛠 FIX: Default ist jetzt .morning, weil .any nicht mehr existiert
+    // Default-Wert (wird im UI nicht mehr angezeigt)
     @State private var routineTime: RoutineTime = .morning
     
     @State private var showDeleteAlert = false
@@ -38,8 +38,6 @@ struct AddHabitSheet: View {
             _selectedDays = State(initialValue: habit.frequency)
             _reminderTime = State(initialValue: habit.reminderTime ?? Date())
             _notificationEnabled = State(initialValue: habit.notificationEnabled)
-            
-            // Tageszeit laden
             _routineTime = State(initialValue: habit.routineTime)
         }
     }
@@ -53,19 +51,11 @@ struct AddHabitSheet: View {
                         Divider()
                         TextField("Titel", text: $title)
                     }
-                }
-                
-                // Zuordnung zur Routine
-                Section(header: Text("Zuordnung").foregroundColor(.black)) {
-                    Picker("Tageszeit", selection: $routineTime) {
-                        ForEach(RoutineTime.allCases) { time in
-                            Text(time.rawValue).tag(time)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    
+                    // Kategorie direkt hier, statt extra Sektion
                     TextField("Kategorie (z.B. Sport)", text: $category)
                 }
+                
+                // "Zuordnung" (RoutineTime) ist hier GELÖSCHT 🗑️
                 
                 Section(header: Text("Wann?").foregroundColor(.black)) {
                     Picker("Wiederholung", selection: $recurrence) {
@@ -151,7 +141,7 @@ struct AddHabitSheet: View {
             updated.reminderTime = reminderTime
             updated.notificationEnabled = notificationEnabled
             updated.category = category
-            updated.routineTime = routineTime // Update Routine
+            // routineTime bleibt unverändert oder default
             
             viewModel.updateHabit(updated)
         } else {
@@ -166,7 +156,7 @@ struct AddHabitSheet: View {
                 time: reminderTime,
                 notifications: notificationEnabled,
                 category: category,
-                routineTime: routineTime // Save Routine
+                routineTime: routineTime
             )
         }
         dismiss()

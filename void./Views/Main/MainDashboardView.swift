@@ -5,8 +5,7 @@ struct MainDashboardView: View {
     @State private var isShowingAddSheet = false
     @State private var habitToEdit: Habit?
     
-    // Für das Log-Sheet (optional, wenn man tippt)
-    @State private var habitToLog: Habit?
+    // "habitToLog" ist gelöscht 🗑️
     
     @State private var selectedCategory: String = "Alle"
     
@@ -15,7 +14,7 @@ struct MainDashboardView: View {
     var body: some View {
         VStack(spacing: 0) {
             
-            // --- HEADER ---
+            // HEADER
             VStack(alignment: .leading, spacing: 12) {
                 Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
                     .font(.system(size: 24, weight: .bold))
@@ -28,7 +27,7 @@ struct MainDashboardView: View {
             }
             .background(Color.white)
 
-            // --- TOOLBAR ---
+            // TOOLBAR
             VStack(spacing: 12) {
                 // Routine Tabs
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -91,50 +90,54 @@ struct MainDashboardView: View {
             .padding(.bottom, 15)
             .background(Color.white)
 
-            // --- HABIT LISTE ---
+            // HABIT LISTE
             List {
                 let currentHabits = viewModel.habits(for: selectedCategory)
                 
                 ForEach(currentHabits) { habit in
-                    HabitRowView(
-                        habit: habit,
-                        viewModel: viewModel,
-                        onEdit: {
-                            // Öffnet das Edit Sheet
-                            habitToEdit = habit
+                    HabitRowView(habit: habit, viewModel: viewModel)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        
+                        // Context Menu (Lange drücken) für Edit/Delete/Reset
+                        .contextMenu {
+                            Button {
+                                habitToEdit = habit
+                            } label: {
+                                Label("Bearbeiten", systemImage: "pencil")
+                            }
+                            
+                            Button(role: .destructive) {
+                                viewModel.deleteHabit(habit)
+                            } label: {
+                                Label("Löschen", systemImage: "trash")
+                            }
+                            
+                            Button {
+                                viewModel.resetHabit(habit)
+                            } label: {
+                                Label("Reset", systemImage: "arrow.counterclockwise")
+                            }
                         }
-                    )
-                    // Wichtig: List Styling entfernen, damit unsere Row die Kontrolle hat
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .onTapGesture {
-                        // Optional: Tippen öffnet das detaillierte Log-Sheet
-                        if habit.type != .checkmark {
-                            habitToLog = habit
-                        } else {
-                            viewModel.incrementHabit(habit)
-                        }
-                    }
+                        // Kein Tap-Gesture mehr für das Log-Sheet!
                 }
                 .onMove { indices, newOffset in
                     viewModel.moveHabit(from: indices, to: newOffset, currentVisibleHabits: currentHabits)
                 }
             }
             .listStyle(.plain)
-            .scrollContentBackground(.hidden) // Grauen Hintergrund der List entfernen
+            .scrollContentBackground(.hidden)
         }
         .background(Color.white.ignoresSafeArea())
         
-        // Sheets
+        // SHEETS
         .sheet(isPresented: $isShowingAddSheet) {
             AddHabitSheet(viewModel: viewModel)
         }
         .sheet(item: $habitToEdit) { habit in
             AddHabitSheet(viewModel: viewModel, editingHabit: habit)
         }
-        .sheet(item: $habitToLog) { habit in
-            LogProgressSheet(viewModel: viewModel, habit: habit)
-        }
+        // Das LogProgressSheet ist hier entfernt 👋
         .onAppear {
             viewModel.determineCurrentRoutineTime()
         }

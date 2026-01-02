@@ -5,7 +5,7 @@ class HabitListViewModel: ObservableObject {
     @Published var habits: [Habit] = []
     @Published var heatmapData: [Double] = []
     
-    // Default auf .morning setzen (da .any entfernt wurde)
+    // Default Start
     @Published var selectedRoutineTime: RoutineTime = .morning
     
     var morningStartHour = 5
@@ -52,7 +52,6 @@ class HabitListViewModel: ObservableObject {
 
     // --- ACTIONS ---
 
-    // Fortschritt hinzufügen (für Slider)
     func logProgress(for habit: Habit, value: Double) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index].currentValue += value
@@ -60,7 +59,6 @@ class HabitListViewModel: ObservableObject {
         }
     }
     
-    // Habit komplett abschließen
     func completeHabit(_ habit: Habit) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index].currentValue = habits[index].goalValue
@@ -68,10 +66,10 @@ class HabitListViewModel: ObservableObject {
         }
     }
     
-    // 🆕 RESET: Setzt den Wert hart auf 0
+    // 🔥 RESET LOGIK (Simpel & Direkt)
     func resetHabit(_ habit: Habit) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
-            habits[index].currentValue = 0
+            habits[index].currentValue = 0 // Wert auf 0
             calculateTodayScore()
         }
     }
@@ -156,7 +154,6 @@ class HabitListViewModel: ObservableObject {
         }
     }
     
-    // Hilfsfunktion für Drag & Drop
     func moveHabit(from source: IndexSet, to destination: Int, currentVisibleHabits: [Habit]) {
         let itemsToMove = source.map { currentVisibleHabits[$0] }
         
