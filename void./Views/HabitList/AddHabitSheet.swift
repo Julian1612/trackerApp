@@ -16,8 +16,8 @@ struct AddHabitSheet: View {
     @State private var reminderTime = Date()
     @State private var notificationEnabled = false
     
-    // NEU: Tageszeit-Auswahl
-    @State private var routineTime: RoutineTime = .any
+    // 🛠 FIX: Default ist jetzt .morning, weil .any nicht mehr existiert
+    @State private var routineTime: RoutineTime = .morning
     
     @State private var showDeleteAlert = false
 
@@ -55,7 +55,7 @@ struct AddHabitSheet: View {
                     }
                 }
                 
-                // NEU: Zuweisung zur Routine
+                // Zuordnung zur Routine
                 Section(header: Text("Zuordnung").foregroundColor(.black)) {
                     Picker("Tageszeit", selection: $routineTime) {
                         ForEach(RoutineTime.allCases) { time in

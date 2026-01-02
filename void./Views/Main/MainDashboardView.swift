@@ -7,28 +7,35 @@ struct MainDashboardView: View {
     
     @State private var selectedCategory: String = "Alle"
     
-    // Hilfs-Array für die Routine-Buttons
-    let routines: [RoutineTime] = [.morning, .day, .evening, .any]
+    // Nur Morgen, Tag, Abend - "Jederzeit" ist cancelled 🚫
+    let routines: [RoutineTime] = [.morning, .day, .evening]
 
     var body: some View {
         VStack(spacing: 0) {
-            // 1. Heatmap
-            GeometryReader { proxy in
+            
+            // 1. Header Area: Datum & Heatmap
+            VStack(alignment: .leading, spacing: 12) {
+                // 🛠 NEU: Das aktuelle Datum im fetten Header-Style
+                Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
+                    .font(.system(size: 24, weight: .bold))
+                    .padding(.leading, 4) // Ein kleines bisschen Abstand vom Rand
+                
                 HeatmapGridView(data: viewModel.heatmapData)
-                    .frame(maxHeight: proxy.size.height * 0.33)
+                    .padding(.bottom, 10) // Luft nach unten zum Atmen
             }
-            .frame(height: 300) // Provide a reasonable fixed container height; adjust as needed
+            .padding(.horizontal) // Rand links/rechts
+            .padding(.top, 20) // Ein bisschen Abstand zur Notch, damit es nicht klebt
 
-            // 2. Toolbar-Bereich
+            // 2. Toolbar-Bereich (Tabs & Filter)
             VStack(spacing: 12) {
-                // A) NEU: Routine-Wahl (Morgen, Tag, Abend) - an der rot markierten Stelle
+                // A) Routine-Wahl (Morgen, Tag, Abend)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(routines, id: \.self) { routine in
                             Button(action: {
                                 withAnimation {
                                     viewModel.selectedRoutineTime = routine
-                                    selectedCategory = "Alle" // Reset Kategorie bei Zeitwechsel
+                                    selectedCategory = "Alle"
                                 }
                             }) {
                                 Text(routine.rawValue)
@@ -37,7 +44,6 @@ struct MainDashboardView: View {
                                     .padding(.vertical, 8)
                                     .padding(.horizontal, 16)
                                     .background(
-                                        // Aktiver Tab ist schwarz, andere transparent mit Border
                                         Capsule()
                                             .fill(viewModel.selectedRoutineTime == routine ? Color.black : Color.white)
                                             .overlay(
@@ -49,15 +55,14 @@ struct MainDashboardView: View {
                     }
                     .padding(.horizontal, 15)
                 }
-                .padding(.top, 10)
 
-                // B) Bestehend: Plus + Kategorien (Unterkategorien)
+                // B) Plus + Kategorien
                 HStack(spacing: 12) {
                     Button(action: { isShowingAddSheet = true }) {
                         Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .light))
+                            .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.black)
-                            .padding(8)
+                            .padding(10)
                             .background(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
                     }
                     
@@ -73,7 +78,6 @@ struct MainDashboardView: View {
                                         .padding(.vertical, 6)
                                         .padding(.horizontal, 12)
                                         .background(
-                                            // Kategorie-Tabs sind jetzt dezenter (Grau/Weiß)
                                             Capsule()
                                                 .fill(selectedCategory == category ? Color.gray.opacity(0.1) : Color.clear)
                                         )
@@ -86,7 +90,7 @@ struct MainDashboardView: View {
             }
             .padding(.bottom, 10)
 
-            // 3. Habit Liste (Doppelt gefiltert)
+            // 3. Habit Liste
             List {
                 ForEach(viewModel.habits(for: selectedCategory)) { habit in
                     HabitRowView(habit: habit, viewModel: viewModel)
@@ -112,7 +116,6 @@ struct MainDashboardView: View {
         .sheet(item: $habitToEdit) { habit in
             AddHabitSheet(viewModel: viewModel, editingHabit: habit)
         }
-        // Beim App-Start (wenn die View erscheint) Zeit prüfen
         .onAppear {
             viewModel.determineCurrentRoutineTime()
         }

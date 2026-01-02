@@ -11,12 +11,11 @@ enum HabitRecurrence: String, CaseIterable, Identifiable, Codable {
     var id: String { self.rawValue }
 }
 
-// NEU: Die Tageszeit-Einteilung
+// 🛠 FIX: "Jederzeit" (.any) ist hier komplett gelöscht.
 enum RoutineTime: String, CaseIterable, Identifiable, Codable {
     case morning = "Morgen"
     case day = "Tag"
     case evening = "Abend"
-    case any = "Jederzeit" // Für Habits, die immer angezeigt werden sollen
     
     var id: String { self.rawValue }
 }
@@ -37,6 +36,6 @@ struct Habit: Identifiable {
     var notificationEnabled: Bool
     var category: String
     
-    // NEU: Wann soll das Habit erledigt werden?
+    // Wann soll das Habit erledigt werden?
     var routineTime: RoutineTime
 }

@@ -5,28 +5,32 @@ class HabitListViewModel: ObservableObject {
     @Published var habits: [Habit] = []
     @Published var heatmapData: [Double] = []
     
-    // NEU: Der aktuell aktive Zeit-Filter (Morgen/Tag/Abend)
-    @Published var selectedRoutineTime: RoutineTime = .any
+    // Start-Wert auf Morning
+    @Published var selectedRoutineTime: RoutineTime = .morning
     
-    // Konfigurierbare Grenzen (könnten später in einer Settings-View geändert werden)
     var morningStartHour = 5
     var dayStartHour = 11
     var eveningStartHour = 18
 
-    // Dynamische Kategorien basierend auf der aktuellen Zeit-Auswahl
+    // Kategorien sind GLOBAL
     var categories: [String] {
-        let relevantHabits = habits.filter {
-            // Zeige Habits der gewählten Zeit ODER "Jederzeit"-Habits
-            $0.routineTime == selectedRoutineTime || $0.routineTime == .any
-        }
-        let allCategories = Set(relevantHabits.map { $0.category })
+        let allCategories = Set(habits.map { $0.category })
         return ["Alle"] + Array(allCategories).sorted()
     }
 
     init() {
-        self.heatmapData = (0..<200).map { _ in Double.random(in: 0...1) }
-        // Automatisch die richtige Tageszeit beim Start setzen
+        // 🛠 FIX: Keine Random-Daten mehr! Alles auf 0.0 (Weiß).
+        // Wir starten mit 199 leeren Tagen für die Vergangenheit.
+        var history = Array(repeating: 0.0, count: 199)
+        
+        // +1 Slot für "Heute" (startet auch bei 0 und wird live berechnet)
+        history.append(0.0)
+        
+        self.heatmapData = history
+        
         determineCurrentRoutineTime()
+        // Checkt direkt beim Start, ob für HEUTE schon was erledigt wurde
+        calculateTodayScore()
     }
     
     // Ermittelt anhand der Uhrzeit den aktuellen Abschnitt
@@ -42,18 +46,56 @@ class HabitListViewModel: ObservableObject {
         }
     }
     
-    // Filter-Logik: Erst Tageszeit, dann Kategorie
+    // Filter-Logik
     func habits(for category: String) -> [Habit] {
-        // 1. Filter nach Zeit (oder "Jederzeit")
-        let timeFiltered = habits.filter {
-            $0.routineTime == selectedRoutineTime || $0.routineTime == .any
+        if category == "Alle" {
+            return habits.filter { $0.routineTime == selectedRoutineTime }
+        } else {
+            return habits.filter { $0.category == category }
+        }
+    }
+    
+    // 🔥 DER REAL-TIME SCORE CHECKER
+    func calculateTodayScore() {
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // Wochentag anpassen (1=Mo ... 7=So Logik, falls nötig, oder Apple Standard)
+        // Hier nutzen wir Apple Standard (1=So) -> mapped auf Mo=1...So=7
+        let standardWeekday = calendar.component(.weekday, from: today)
+        let adjustedWeekday = (standardWeekday == 1) ? 7 : (standardWeekday - 1)
+        
+        // Welche Habits MÜSSEN heute erledigt werden?
+        let activeHabits = habits.filter { habit in
+            switch habit.recurrence {
+            case .daily:
+                return true
+            case .weekly:
+                return habit.frequency.contains(adjustedWeekday)
+            case .monthly:
+                return true
+            }
         }
         
-        // 2. Filter nach Kategorie
-        if category == "Alle" {
-            return timeFiltered
-        } else {
-            return timeFiltered.filter { $0.category == category }
+        // Wenn heute nichts ansteht -> Score 0.0 (Weiß)
+        if activeHabits.isEmpty {
+            updateLastHeatmapTile(0.0)
+            return
+        }
+        
+        // Wie viele davon hast du geschafft?
+        let completedCount = activeHabits.filter { $0.currentValue >= $0.goalValue }.count
+        
+        // Score berechnen (0.0 bis 1.0)
+        let score = Double(completedCount) / Double(activeHabits.count)
+        
+        updateLastHeatmapTile(score)
+    }
+    
+    private func updateLastHeatmapTile(_ score: Double) {
+        if !heatmapData.isEmpty {
+            // Das letzte Element ist immer HEUTE
+            heatmapData[heatmapData.count - 1] = score
         }
     }
 
@@ -62,12 +104,14 @@ class HabitListViewModel: ObservableObject {
     func deleteHabit(_ habit: Habit) {
         withAnimation {
             habits.removeAll { $0.id == habit.id }
+            calculateTodayScore()
         }
     }
 
     func updateHabit(_ updatedHabit: Habit) {
         if let index = habits.firstIndex(where: { $0.id == updatedHabit.id }) {
             habits[index] = updatedHabit
+            calculateTodayScore()
         }
     }
 
@@ -78,6 +122,7 @@ class HabitListViewModel: ObservableObject {
             } else {
                 habits[index].currentValue += 1
             }
+            calculateTodayScore()
         }
     }
 
@@ -94,11 +139,12 @@ class HabitListViewModel: ObservableObject {
             reminderTime: time,
             notificationEnabled: notifications,
             category: category,
-            routineTime: routineTime // Wird jetzt gespeichert
+            routineTime: routineTime
         )
         DispatchQueue.main.async {
             withAnimation(.spring()) {
                 self.habits.append(newHabit)
+                self.calculateTodayScore()
             }
         }
     }
