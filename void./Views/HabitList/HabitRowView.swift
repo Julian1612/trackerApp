@@ -1,30 +1,23 @@
-//
-//  HabitRowView.swift
-//  void.
-//
-//  Created by Julian Schneider on 02.01.26.
-//
-
 import SwiftUI
-
 struct HabitRowView: View {
     let habit: Habit
+    @ObservedObject var viewModel: HabitListViewModel
 
     var body: some View {
-        HStack(spacing: 16) {
-            HabitIconComponent(habit: habit)
+        HStack(spacing: 12) {
+            Button(action: { viewModel.incrementHabit(habit) }) {
+                ZStack {
+                    Circle().stroke(Color.black, lineWidth: 1)
+                    Text(habit.emoji).font(.system(size: 16))
+                }
+                .frame(width: 38, height: 38)
+            }.buttonStyle(PlainButtonStyle())
 
-            Text(habit.title)
-                .font(Typography.habitTitle)
-                .foregroundColor(ColorPalette.primary)
-
+            Text(habit.title).font(Typography.habitTitle)
             Spacer()
-
-            Text(habit.displayValue)
+            Text(habit.type == .checkmark ? (habit.currentValue >= 1 ? "✓" : "") : "\(Int(habit.currentValue)) \(habit.unit)")
                 .font(Typography.statusValue)
-                .foregroundColor(ColorPalette.primary)
         }
         .padding(.vertical, 8)
-        .padding(.horizontal)
     }
 }
