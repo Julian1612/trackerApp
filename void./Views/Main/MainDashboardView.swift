@@ -3,47 +3,75 @@ import SwiftUI
 struct MainDashboardView: View {
     @StateObject private var viewModel = HabitListViewModel()
     @State private var isShowingAddSheet = false
-    @State private var habitToEdit: Habit? // Für das Sheet beim Bearbeiten
+    @State private var habitToEdit: Habit?
+    
+    // State für den aktuell gewählten Tab (Standard: "Alle")
+    @State private var selectedCategory: String = "Alle"
 
     var body: some View {
         VStack(spacing: 0) {
-            // Heatmap
+            // 1. Heatmap
             HeatmapGridView(data: viewModel.heatmapData)
                 .frame(maxHeight: UIScreen.main.bounds.height * 0.33)
 
-            // Plus Button
-            HStack {
+            // 2. Toolbar: Plus-Button + Kategorie Tabs
+            HStack(spacing: 12) {
+                // Der Plus-Button (Links fixiert)
                 Button(action: { isShowingAddSheet = true }) {
                     Image(systemName: "plus")
                         .font(.system(size: 20, weight: .light))
                         .foregroundColor(.black)
-                        .padding(.leading, 20)
+                        .padding(10) // Größere Touch-Area
+                        .background(Color.white)
                 }
-                Spacer()
+                
+                // Die Tabs (Rechts scrollbar)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(viewModel.categories, id: \.self) { category in
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedCategory = category
+                                }
+                            }) {
+                                Text(category)
+                                    .font(.system(size: 13, weight: selectedCategory == category ? .bold : .medium))
+                                    .foregroundColor(selectedCategory == category ? .white : .black)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 14)
+                                    .background(
+                                        Capsule()
+                                            .fill(selectedCategory == category ? Color.black : Color.gray.opacity(0.1))
+                                    )
+                            }
+                        }
+                    }
+                    .padding(.trailing, 20) // Padding rechts damit man den letzten Tab sieht
+                }
             }
+            .padding(.leading, 15) // Abstand vom linken Rand
             .padding(.top, 4)
-            .padding(.bottom, 4)
+            .padding(.bottom, 8)
 
-            // Habit Liste mit Swipe Actions
+            // 3. Habit Liste (Gefiltert)
             List {
-                ForEach(viewModel.habits) { habit in
+                // Wir nutzen die Filter-Funktion aus dem ViewModel
+                ForEach(viewModel.habits(for: selectedCategory)) { habit in
                     HabitRowView(habit: habit, viewModel: viewModel)
-                        // Entfernt Standard-Padding der Liste für "engen" Look
                         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.white)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            // SWIPE LEFT öffnet Bearbeiten statt Löschen
                             Button {
                                 habitToEdit = habit
                             } label: {
                                 Label("Bearbeiten", systemImage: "pencil")
                             }
-                            .tint(.black) // Minimalistisches Schwarz für die Action
+                            .tint(.black)
                         }
                 }
             }
-            .listStyle(.plain) // Entfernt den grauen Hintergrund der Standard-Liste
+            .listStyle(.plain)
         }
         .background(Color.white.ignoresSafeArea())
         .sheet(isPresented: $isShowingAddSheet) {

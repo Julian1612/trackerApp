@@ -5,11 +5,27 @@ class HabitListViewModel: ObservableObject {
     @Published var habits: [Habit] = []
     @Published var heatmapData: [Double] = []
 
+    // Berechnet automatisch alle vorhandenen Kategorien für die Tabs
+    var categories: [String] {
+        let allCategories = Set(habits.map { $0.category })
+        return ["Alle"] + Array(allCategories).sorted()
+    }
+
     init() {
         self.heatmapData = (0..<200).map { _ in Double.random(in: 0...1) }
     }
+    
+    // Gibt entweder alle Habits zurück oder nur die der gewählten Kategorie
+    func habits(for category: String) -> [Habit] {
+        if category == "Alle" {
+            return habits
+        } else {
+            return habits.filter { $0.category == category }
+        }
+    }
 
-    // Funktion zum Löschen eines Habits
+    // --- Bestehende Funktionen ---
+    
     func deleteHabit(_ habit: Habit) {
         withAnimation {
             habits.removeAll { $0.id == habit.id }
@@ -32,7 +48,7 @@ class HabitListViewModel: ObservableObject {
         }
     }
 
-    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, days: Set<Int>, category: String) {
+    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, recurrence: HabitRecurrence, days: Set<Int>, time: Date, notifications: Bool, category: String) {
         let newHabit = Habit(
             title: title,
             emoji: emoji,
@@ -40,7 +56,10 @@ class HabitListViewModel: ObservableObject {
             currentValue: 0,
             goalValue: goal,
             unit: unit,
+            recurrence: recurrence,
             frequency: days,
+            reminderTime: time,
+            notificationEnabled: notifications,
             category: category
         )
         DispatchQueue.main.async {
