@@ -5,30 +5,30 @@ struct MainDashboardView: View {
     @State private var isShowingAddSheet = false
     @State private var habitToEdit: Habit?
     
+    // Optional: Log Sheet für Taps
+    @State private var habitToLog: Habit?
+    
     @State private var selectedCategory: String = "Alle"
     
-    // Nur Morgen, Tag, Abend - "Jederzeit" ist cancelled 🚫
     let routines: [RoutineTime] = [.morning, .day, .evening]
 
     var body: some View {
         VStack(spacing: 0) {
             
-            // 1. Header Area: Datum & Heatmap
+            // Header
             VStack(alignment: .leading, spacing: 12) {
-                // 🛠 NEU: Das aktuelle Datum im fetten Header-Style
                 Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
                     .font(.system(size: 24, weight: .bold))
-                    .padding(.leading, 4) // Ein kleines bisschen Abstand vom Rand
+                    .padding(.leading, 4)
                 
                 HeatmapGridView(data: viewModel.heatmapData)
-                    .padding(.bottom, 10) // Luft nach unten zum Atmen
+                    .padding(.bottom, 10)
             }
-            .padding(.horizontal) // Rand links/rechts
-            .padding(.top, 20) // Ein bisschen Abstand zur Notch, damit es nicht klebt
+            .padding(.horizontal)
+            .padding(.top, 20)
 
-            // 2. Toolbar-Bereich (Tabs & Filter)
+            // Toolbar
             VStack(spacing: 12) {
-                // A) Routine-Wahl (Morgen, Tag, Abend)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(routines, id: \.self) { routine in
@@ -46,9 +46,7 @@ struct MainDashboardView: View {
                                     .background(
                                         Capsule()
                                             .fill(viewModel.selectedRoutineTime == routine ? Color.black : Color.white)
-                                            .overlay(
-                                                Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                            )
+                                            .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1))
                                     )
                             }
                         }
@@ -56,7 +54,6 @@ struct MainDashboardView: View {
                     .padding(.horizontal, 15)
                 }
 
-                // B) Plus + Kategorien
                 HStack(spacing: 12) {
                     Button(action: { isShowingAddSheet = true }) {
                         Image(systemName: "plus")
@@ -90,21 +87,33 @@ struct MainDashboardView: View {
             }
             .padding(.bottom, 10)
 
-            // 3. Habit Liste
+            // List
             List {
-                ForEach(viewModel.habits(for: selectedCategory)) { habit in
-                    HabitRowView(habit: habit, viewModel: viewModel)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.white)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button {
-                                habitToEdit = habit
-                            } label: {
-                                Label("Bearbeiten", systemImage: "pencil")
-                            }
-                            .tint(.black)
+                let currentHabits = viewModel.habits(for: selectedCategory)
+                
+                ForEach(currentHabits) { habit in
+                    HabitRowView(
+                        habit: habit,
+                        viewModel: viewModel,
+                        onEdit: {
+                            // HIER: Öffnet das volle Bearbeitungs-Menü
+                            // Da ist dann auch der Löschen-Button drin.
+                            habitToEdit = habit
                         }
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    // Optional: Tap öffnet Log-Sheet
+                    .onTapGesture {
+                        if habit.type != .checkmark {
+                            habitToLog = habit
+                        } else {
+                            viewModel.incrementHabit(habit)
+                        }
+                    }
+                }
+                .onMove { indices, newOffset in
+                    viewModel.moveHabit(from: indices, to: newOffset, currentVisibleHabits: currentHabits)
                 }
             }
             .listStyle(.plain)
@@ -115,6 +124,9 @@ struct MainDashboardView: View {
         }
         .sheet(item: $habitToEdit) { habit in
             AddHabitSheet(viewModel: viewModel, editingHabit: habit)
+        }
+        .sheet(item: $habitToLog) { habit in
+            LogProgressSheet(viewModel: viewModel, habit: habit)
         }
         .onAppear {
             viewModel.determineCurrentRoutineTime()
