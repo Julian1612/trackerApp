@@ -17,15 +17,21 @@ struct HabitRowView: View {
                 ZStack {
                     Circle().strokeBorder(Color.black, lineWidth: 1.5)
                     Text(habit.emoji)
-                }.frame(width: 42, height: 42)
+                }
+                .frame(width: 42, height: 42)
             }
             
-            Text(habit.title).font(.system(size: 17, weight: .medium))
+            Text(habit.title)
+                .font(.system(size: 17, weight: .medium))
+            
             Spacer()
-            Text("\(Int(habit.currentValue)) / \(Int(habit.goalValue)) \(habit.unit)").font(.subheadline).foregroundColor(.secondary)
+            
+            Text("\(Int(habit.currentValue)) / \(Int(habit.goalValue)) \(habit.unit)")
+                .font(.subheadline)
         }
         .padding(.vertical, 14)
         .sheet(isPresented: $isShowingLogSheet) {
+            // 🔥 FIX: Wir übergeben viewModel und habit direkt.
             LogProgressSheet(viewModel: viewModel, habit: habit)
         }
     }

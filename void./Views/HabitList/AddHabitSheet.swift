@@ -31,12 +31,14 @@ struct AddHabitSheet: View {
             Form {
                 Section(header: Text("Details")) {
                     TextField("Titel", text: $title)
-                    TextField("Kategorie (z.B. Sport)", text: $category)
+                    TextField("Kategorie", text: $category)
                 }
                 
-                Section(header: Text("Wann soll der Habit anstehen?")) {
-                    Picker("Tageszeit", selection: $routineTime) {
-                        ForEach(RoutineTime.allCases) { time in Text(time.rawValue).tag(time) }
+                Section(header: Text("Tageszeit")) {
+                    Picker("Wann?", selection: $routineTime) {
+                        ForEach(RoutineTime.allCases) { time in
+                            Text(time.rawValue).tag(time)
+                        }
                     }
                     .pickerStyle(.segmented)
                 }
@@ -48,18 +50,13 @@ struct AddHabitSheet: View {
                         Text("Zähler").tag(HabitType.counter)
                     }
                     .pickerStyle(.segmented)
-                    
-                    if selectedType != .checkmark {
-                        HStack {
-                            TextField("Zielwert", value: $goal, format: .number).keyboardType(.decimalPad)
-                            TextField("Einheit", text: $unit)
-                        }
-                    }
                 }
 
                 if editingHabit != nil {
                     Section {
-                        Button("Routine löschen", role: .destructive) { showDeleteAlert = true }
+                        Button("Routine löschen", role: .destructive) {
+                            showDeleteAlert = true
+                        }
                     }
                 }
             }
@@ -72,9 +69,6 @@ struct AddHabitSheet: View {
                             updated.title = title
                             updated.category = category
                             updated.routineTime = routineTime
-                            updated.goalValue = goal
-                            updated.unit = unit
-                            updated.type = selectedType
                             viewModel.updateHabit(updated)
                         } else {
                             viewModel.addHabit(title: title, emoji: "🎯", type: selectedType, goal: goal, unit: unit, recurrence: .daily, days: [1,2,3,4,5,6,7], category: category, routineTime: routineTime)
@@ -85,7 +79,10 @@ struct AddHabitSheet: View {
             }
             .alert("Löschen?", isPresented: $showDeleteAlert) {
                 Button("Löschen", role: .destructive) {
-                    if let habit = editingHabit { viewModel.deleteHabit(habit); dismiss() }
+                    if let habit = editingHabit {
+                        viewModel.deleteHabit(habit)
+                        dismiss()
+                    }
                 }
             }
         }

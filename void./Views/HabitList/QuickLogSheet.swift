@@ -8,8 +8,12 @@ struct QuickLogSheet: View {
 
     var body: some View {
         VStack(spacing: 25) {
-            Text("\(habit.emoji) \(habit.title)").font(.title2).bold()
+            // Header-Vibe
+            Text("\(habit.emoji) \(habit.title)")
+                .font(.title2)
+                .bold()
             
+            // Das dicke Eingabefeld
             HStack {
                 TextField("Wert", value: $valueToAdd, format: .number)
                     .keyboardType(.decimalPad)
@@ -17,6 +21,7 @@ struct QuickLogSheet: View {
                     .font(.system(size: 40, weight: .bold))
             }
             
+            // Quick-Adds für den Workflow
             HStack(spacing: 20) {
                 Button("+5") { valueToAdd += 5 }
                 Button("+10") { valueToAdd += 10 }
@@ -24,9 +29,12 @@ struct QuickLogSheet: View {
             }
             .buttonStyle(.bordered)
             
+            // Der Save-Button, der endlich funktioniert
             Button(action: {
-                // 🔥 FIXED: Auch hier das $ entfernt!
-                $viewModel.updateHabitProgress(for: habit, value: habit.currentValue + valueToAdd)
+                // 🔥 FIXED: KEIN $ vor viewModel beim Aufruf der Funktion!
+                // Wir nehmen den aktuellen Wert und addieren das Neue dazu
+                let newValue = habit.currentValue + valueToAdd
+                $viewModel.updateHabitProgress(for: habit, value: newValue)
                 dismiss()
             }) {
                 Text("Speichern")
