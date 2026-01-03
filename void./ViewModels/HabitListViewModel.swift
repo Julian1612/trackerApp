@@ -3,11 +3,9 @@ import Combine
 import SwiftData
 
 /// The central brain managing data flow between SwiftData and the View.
-/// Handles fetching, updating, and logic calculations (MVVM Style).
 class HabitListViewModel: ObservableObject {
     // MARK: - Properties
     
-    // The ModelContext is our connection to the database
     private var modelContext: ModelContext?
     
     @Published var habits: [Habit] = []
@@ -24,100 +22,72 @@ class HabitListViewModel: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        // Heatmap initialization (empty state)
-        self.heatmapData = Array(repeating: 0.0, count: 200)
+        self.heatmapData = Array(repeating: 0.0, count: 100)
         determineCurrentRoutineTime()
     }
     
-    /// Sets the context and fetches initial data. Call this from .onAppear.
     func setContext(_ context: ModelContext) {
         self.modelContext = context
         fetchHabits()
+        calculateHistoricalHeatmap()
     }
     
-    // MARK: - Data Fetching
+    // MARK: - Data Operations
     
-    /// Fetches all habits from the database and updates the UI.
     func fetchHabits() {
         guard let context = modelContext else { return }
-        
         do {
-            // Sort by the user-defined sortOrder
             let descriptor = FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.sortOrder)])
             self.habits = try context.fetch(descriptor)
             
-            // If empty (first launch), create samples
             if habits.isEmpty {
                 createSampleHabits()
-            } else {
-                calculateTodayScore()
             }
         } catch {
-            print("Failed to fetch habits: \(error)")
+            print("Failed to fetch: \(error)")
         }
     }
     
-    // MARK: - Filtering Logic
-    
-    func habits(for category: String) -> [Habit] {
-        let filtered: [Habit]
-        if category == "All" {
-            filtered = habits.filter { $0.routineTime == selectedRoutineTime }
-        } else {
-            filtered = habits.filter { $0.category == category }
-        }
-        return filtered.sorted { $0.sortOrder < $1.sortOrder }
+    func logProgress(for habit: Habit, value: Double) {
+        guard let context = modelContext else { return }
+        
+        habit.currentValue += value
+        
+        // Logik für Persistence:
+        // Falls du ActivityLog noch nicht erstellt hast, kommentiere die nächsten 2 Zeilen aus:
+        let newLog = ActivityLog(habitID: habit.id, date: Date(), value: value)
+        context.insert(newLog)
+        
+        saveContext()
+        calculateHistoricalHeatmap()
     }
     
-    // MARK: - CRUD Actions (Create, Read, Update, Delete)
+    func updateHabitProgress(for habit: Habit, value: Double) {
+        habit.currentValue = value
+        saveContext()
+        calculateHistoricalHeatmap()
+    }
+    
+    func updateHabit(_ updatedHabit: Habit) {
+        saveContext()
+        fetchHabits()
+    }
     
     func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime) {
         guard let context = modelContext else { return }
-        
         let maxOrder = habits.map { $0.sortOrder }.max() ?? 0
-        let newHabit = Habit(
-            title: title,
-            emoji: emoji,
-            type: type,
-            currentValue: 0,
-            goalValue: goal,
-            unit: unit,
-            recurrence: recurrence,
-            frequency: Array(days), // Convert Set to Array
-            category: category,
-            routineTime: routineTime,
-            sortOrder: maxOrder + 1
-        )
         
+        let newHabit = Habit(
+            title: title, emoji: emoji, type: type, currentValue: 0, goalValue: goal, unit: unit,
+            recurrence: recurrence, frequency: Array(days), category: category, routineTime: routineTime, sortOrder: maxOrder + 1
+        )
         context.insert(newHabit)
         saveContext()
         fetchHabits()
     }
     
-    /// Directly updates the object. Since Habit is now a class, reference logic applies.
-    func updateHabitProgress(for habit: Habit, value: Double) {
-        habit.currentValue = value
-        saveContext()
-        calculateTodayScore()
-    }
-    
-    func logProgress(for habit: Habit, value: Double) {
-        habit.currentValue += value
-        saveContext()
-        calculateTodayScore()
-    }
-    
-    func updateHabit(_ updatedHabit: Habit) {
-        // With classes, 'updatedHabit' is likely the same reference.
-        // If coming from a struct-based form, ensuring persistence is key.
-        // Since we bind directly to the object in SwiftData, explicit update might just need a save.
-        saveContext()
-        fetchHabits()
-    }
-    
     func deleteHabit(_ habit: Habit) {
-        guard let context = modelContext else { return }
-        context.delete(habit)
+        modelContext?.delete(habit)
         saveContext()
         fetchHabits()
     }
@@ -128,24 +98,86 @@ class HabitListViewModel: ObservableObject {
         
         let movedHabit = habits.remove(at: fromIndex)
         habits.insert(movedHabit, at: toIndex)
-
-        // Update sortOrder for persistence
-        for (index, habit) in habits.enumerated() {
-            habit.sortOrder = index
-        }
+        
+        for (index, habit) in habits.enumerated() { habit.sortOrder = index }
         saveContext()
     }
     
-    private func saveContext() {
-        guard let context = modelContext else { return }
-        do {
-            try context.save()
-        } catch {
-            print("Error saving context: \(error)")
+    // MARK: - Filtering Logic (RENAMED TO FIX BUG 🚨)
+    
+    func getVisibleHabits(for category: String) -> [Habit] {
+        let filtered: [Habit]
+        if category == "All" {
+            filtered = habits.filter { $0.routineTime == selectedRoutineTime }
+        } else {
+            filtered = habits.filter { $0.category == category }
+        }
+        return filtered.sorted { $0.sortOrder < $1.sortOrder }
+    }
+    
+    // MARK: - Helpers
+    
+    func calculateHistoricalHeatmap() {
+        guard let context = modelContext, !habits.isEmpty else { return }
+        
+        // 1. Fetch Logs
+        let descriptor = FetchDescriptor<ActivityLog>()
+        guard let logs = try? context.fetch(descriptor) else { return }
+        
+        var newHeatmap: [Double] = []
+        let calendar = Calendar.current
+        let today = Date()
+        
+        // 2. Iterate back 100 days
+        for offset in (0..<100).reversed() {
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            
+            // Logs for this day
+            let daysLogs = logs.filter { calendar.isDate($0.date, inSameDayAs: date) }
+            
+            // Active habits for this weekday
+            let weekday = calendar.component(.weekday, from: date)
+            let adjustedWeekday = (weekday == 1) ? 7 : (weekday - 1)
+            
+            let activeHabits = habits.filter { habit in
+                switch habit.recurrence {
+                case .daily: return true
+                case .weekly: return habit.frequency.contains(adjustedWeekday)
+                case .monthly: return true
+                }
+            }
+            
+            if activeHabits.isEmpty {
+                newHeatmap.append(0.0)
+                continue
+            }
+            
+            // Calculate Score
+            var completedCount = 0
+            for habit in activeHabits {
+                let habitLogsValue = daysLogs
+                    .filter { $0.habitID == habit.id }
+                    .reduce(0) { $0 + $1.value }
+                
+                let isToday = calendar.isDateInToday(date)
+                let totalValue = isToday ? max(habit.currentValue, habitLogsValue) : habitLogsValue
+                
+                if totalValue >= habit.goalValue {
+                    completedCount += 1
+                }
+            }
+            let score = Double(completedCount) / Double(activeHabits.count)
+            newHeatmap.append(score)
+        }
+        
+        DispatchQueue.main.async {
+            self.heatmapData = newHeatmap
         }
     }
     
-    // MARK: - Internal Calculations
+    private func saveContext() {
+        try? modelContext?.save()
+    }
     
     func determineCurrentRoutineTime() {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -154,53 +186,12 @@ class HabitListViewModel: ObservableObject {
         else { selectedRoutineTime = .evening }
     }
     
-    func calculateTodayScore() {
-        let calendar = Calendar.current
-        let today = Date()
-        let weekday = calendar.component(.weekday, from: today)
-        let adjustedWeekday = (weekday == 1) ? 7 : (weekday - 1)
-        
-        let activeHabits = habits.filter { habit in
-            switch habit.recurrence {
-            case .daily: return true
-            case .weekly: return habit.frequency.contains(adjustedWeekday)
-            case .monthly: return true
-            }
-        }
-        
-        if activeHabits.isEmpty {
-            updateHeatmap(0.0)
-            return
-        }
-        
-        let completedCount = activeHabits.filter { $0.currentValue >= $0.goalValue }.count
-        let score = Double(completedCount) / Double(activeHabits.count)
-        updateHeatmap(score)
-    }
-    
-    private func updateHeatmap(_ score: Double) {
-        if !heatmapData.isEmpty {
-            heatmapData[heatmapData.count - 1] = score
-        }
-    }
-
-    // MARK: - Sample Data
-    
     private func createSampleHabits() {
         guard let context = modelContext else { return }
-        
-        let samples = [
-            Habit(title: "Drink Water", emoji: "💧", type: .value, goalValue: 8, unit: "Glasses", category: "Health", routineTime: .morning, sortOrder: 0),
-            Habit(title: "Make Bed", emoji: "🛏️", type: .checkmark, goalValue: 1, unit: "", category: "Mindset", routineTime: .morning, sortOrder: 1),
-            Habit(title: "Walk", emoji: "🚶", type: .value, goalValue: 30, unit: "Min", category: "Health", routineTime: .day, sortOrder: 2),
-            Habit(title: "Deep Work", emoji: "💻", type: .value, goalValue: 2, unit: "Sessions", category: "Mindset", routineTime: .day, sortOrder: 3),
-            Habit(title: "Read", emoji: "📖", type: .value, goalValue: 10, unit: "Pages", category: "Mindset", routineTime: .evening, sortOrder: 4),
-            Habit(title: "No Phone", emoji: "📵", type: .checkmark, goalValue: 1, unit: "", category: "Health", routineTime: .evening, sortOrder: 5)
-        ]
-        
-        for sample in samples {
-            context.insert(sample)
-        }
+        let s1 = Habit(title: "Drink Water", emoji: "💧", type: .value, goalValue: 8, unit: "Glasses", category: "Health", routineTime: .morning, sortOrder: 0)
+        let s2 = Habit(title: "Read", emoji: "📖", type: .value, goalValue: 10, unit: "Pages", category: "Mindset", routineTime: .evening, sortOrder: 1)
+        context.insert(s1)
+        context.insert(s2)
         saveContext()
         fetchHabits()
     }
