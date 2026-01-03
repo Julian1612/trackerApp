@@ -1,12 +1,12 @@
 import Foundation
+import SwiftData
 
-// Defines the way we track a habit
+// Enum definitions remain Codable for persistence
 enum HabitType: String, Codable {
     case value
     case checkmark
 }
 
-// Defines how often the habit should be repeated
 enum HabitRecurrence: String, CaseIterable, Identifiable, Codable {
     case daily = "Daily"
     case weekly = "Weekly"
@@ -15,7 +15,6 @@ enum HabitRecurrence: String, CaseIterable, Identifiable, Codable {
     var id: String { self.rawValue }
 }
 
-// Defines the time of day for the habit routine
 enum RoutineTime: String, CaseIterable, Identifiable, Codable {
     case morning = "Morning"
     case day = "Day"
@@ -24,9 +23,13 @@ enum RoutineTime: String, CaseIterable, Identifiable, Codable {
     var id: String { self.rawValue }
 }
 
-// The core data structure for a Habit
-struct Habit: Identifiable, Codable {
-    let id: UUID
+/// The core data model, now upgraded to a SwiftData @Model class.
+/// This allows automatic persistence and relationship management.
+@Model
+final class Habit: Identifiable {
+    // Unique identifier for the habit
+    @Attribute(.unique) var id: UUID
+    
     var title: String
     var emoji: String
     var type: HabitType
@@ -36,17 +39,36 @@ struct Habit: Identifiable, Codable {
     
     // Configuration
     var recurrence: HabitRecurrence
-    var frequency: Set<Int> // Stores weekdays (1-7)
+    var frequency: [Int] // Changed from Set to Array for better persistence stability
     var reminderTime: Date?
     var notificationEnabled: Bool
     var category: String
     var routineTime: RoutineTime
     
-    // Keeps track of the position in the list
+    // Sorting order in the list
     var sortOrder: Int
     
-    // Initializer with default ID for convenience
-    init(id: UUID = UUID(), title: String, emoji: String, type: HabitType, currentValue: Double = 0, goalValue: Double, unit: String, recurrence: HabitRecurrence = .daily, frequency: Set<Int> = [1,2,3,4,5,6,7], reminderTime: Date? = nil, notificationEnabled: Bool = false, category: String, routineTime: RoutineTime, sortOrder: Int) {
+    // Helper to determine if the habit is completed
+    var isCompleted: Bool {
+        return currentValue >= goalValue
+    }
+    
+    // Initializer
+    init(id: UUID = UUID(),
+         title: String,
+         emoji: String,
+         type: HabitType,
+         currentValue: Double = 0,
+         goalValue: Double,
+         unit: String,
+         recurrence: HabitRecurrence = .daily,
+         frequency: [Int] = [1,2,3,4,5,6,7],
+         reminderTime: Date? = nil,
+         notificationEnabled: Bool = false,
+         category: String,
+         routineTime: RoutineTime,
+         sortOrder: Int) {
+        
         self.id = id
         self.title = title
         self.emoji = emoji

@@ -1,102 +1,155 @@
 import SwiftUI
+import SwiftData
 import UniformTypeIdentifiers
 
-/// The root view of the app, displaying the header, heatmap, and the list of habits.
+/// The root view of the app.
+/// Now features the "Void" aesthetic with Serif fonts and True Black background support.
 struct MainDashboardView: View {
+    // 🔥 SwiftData Context Injection
+    // This allows the view to access the database context provided by VoidApp.swift
+    @Environment(\.modelContext) private var modelContext
+    
+    // ViewModel as StateObject (The Brain)
+    // Manages the entire state of the habit list and heatmap logic
     @StateObject private var viewModel = HabitListViewModel()
+    
+    // UI State Management
     @State private var isShowingAddSheet = false
     @State private var habitToEdit: Habit?
     @State private var selectedCategory: String = "All"
     
-    // State for the custom Drag & Drop functionality
+    // Drag & Drop State
     @State private var draggedHabit: Habit?
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // MARK: - Header & Heatmap
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                        .font(.system(size: 24, weight: .bold))
-                        .padding(.horizontal, 16)
-                    
-                    HeatmapGridView(data: viewModel.heatmapData)
-                        .padding(.horizontal, 16)
-                }
-                .padding(.top, 10)
-
-                // MARK: - Filter Toolbar
-                VStack(spacing: 12) {
-                    // Time of Day Filter (Morning, Day, Evening)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(RoutineTime.allCases) { routine in
-                                Button(action: {
-                                    withAnimation {
-                                        viewModel.selectedRoutineTime = routine
-                                        selectedCategory = "All"
-                                    }
-                                }) {
-                                    Text(routine.rawValue)
-                                        .font(.system(size: 14, weight: viewModel.selectedRoutineTime == routine ? .bold : .medium))
-                                        .foregroundColor(viewModel.selectedRoutineTime == routine ? .white : .black)
-                                        .padding(.vertical, 8).padding(.horizontal, 16)
-                                        .background(Capsule().fill(viewModel.selectedRoutineTime == routine ? Color.black : Color.white).overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1)))
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-
-                    // Category Filter & Add Button
-                    HStack(spacing: 12) {
-                        Button(action: { isShowingAddSheet = true }) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 20, weight: .light))
-                                .foregroundColor(.black)
-                                .frame(width: 40, height: 40)
-                        }
+            ZStack {
+                // 🌑 Global Background (True Black in Dark Mode)
+                // Ignores safe area to cover the entire screen including notch/dynamic island
+                ColorPalette.background
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // MARK: - Header & Heatmap Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        // ✍️ Editorial Serif Font for the Date
+                        // Gives the app a high-end magazine feel
+                        Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                            .font(Typography.headerSerif)
+                            .foregroundColor(ColorPalette.primary)
+                            .padding(.horizontal, 16)
                         
+                        // The visual representation of consistency
+                        HeatmapGridView(data: viewModel.heatmapData)
+                            .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+
+                    // MARK: - Filter Toolbar
+                    VStack(spacing: 12) {
+                        // 1. Time of Day Filter (Morning, Day, Evening)
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(viewModel.categories, id: \.self) { cat in
-                                    Button(action: { withAnimation { selectedCategory = cat } }) {
-                                        Text(cat)
-                                            .font(.system(size: 13, weight: selectedCategory == cat ? .bold : .medium))
-                                            .foregroundColor(selectedCategory == cat ? .black : .gray)
-                                            .padding(.vertical, 6).padding(.horizontal, 12)
-                                            .background(Capsule().fill(selectedCategory == cat ? Color.gray.opacity(0.1) : Color.clear))
+                            HStack(spacing: 12) {
+                                ForEach(RoutineTime.allCases) { routine in
+                                    Button(action: {
+                                        withAnimation {
+                                            viewModel.selectedRoutineTime = routine
+                                            selectedCategory = "All" // Reset category when changing time
+                                        }
+                                    }) {
+                                        Text(routine.rawValue)
+                                            .font(.system(size: 14, weight: viewModel.selectedRoutineTime == routine ? .bold : .medium))
+                                            .foregroundColor(viewModel.selectedRoutineTime == routine ? ColorPalette.background : ColorPalette.primary)
+                                            .padding(.vertical, 8).padding(.horizontal, 16)
+                                            .background(
+                                                Capsule()
+                                                    .fill(viewModel.selectedRoutineTime == routine ? ColorPalette.primary : Color.clear)
+                                                    .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                                            )
                                     }
                                 }
                             }
                         }
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .padding(.vertical, 15)
+                        .padding(.horizontal, 16)
 
-                // MARK: - Habit List
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                         ForEach(viewModel.habits(for: selectedCategory)) { habit in
-                            HabitRowView(habit: habit, viewModel: viewModel)
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 16)
-                                .contextMenu {
-                                    Button { habitToEdit = habit } label: { Label("Edit", systemImage: "pencil") }
-                                    Button { viewModel.updateHabitProgress(for: habit, value: 0) } label: { Label("Reset", systemImage: "arrow.counterclockwise") }
+                        // 2. Category Filter & Add Button
+                        HStack(spacing: 12) {
+                            // The "Add New Habit" Button
+                            Button(action: { isShowingAddSheet = true }) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 20, weight: .light))
+                                    .foregroundColor(ColorPalette.primary)
+                                    .frame(width: 40, height: 40)
+                                    .background(
+                                        Circle().stroke(ColorPalette.primary.opacity(0.2), lineWidth: 1)
+                                    )
+                            }
+                            
+                            // Scrollable Category List
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(viewModel.categories, id: \.self) { cat in
+                                        Button(action: { withAnimation { selectedCategory = cat } }) {
+                                            Text(cat)
+                                                .font(.system(size: 13, weight: selectedCategory == cat ? .bold : .medium))
+                                                .foregroundColor(selectedCategory == cat ? ColorPalette.background : Color.gray)
+                                                .padding(.vertical, 6).padding(.horizontal, 12)
+                                                .background(Capsule().fill(selectedCategory == cat ? ColorPalette.primary : Color.clear))
+                                        }
+                                    }
                                 }
-                                .onDrag {
-                                    self.draggedHabit = habit
-                                    return NSItemProvider(object: habit.id.uuidString as NSString)
-                                }
-                                .onDrop(of: [UTType.text], delegate: HabitDropDelegate(item: habit, viewModel: viewModel, draggedHabit: $draggedHabit))
+                            }
                         }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.bottom, 20)
+                    .padding(.vertical, 20)
+
+                    // MARK: - Habit List
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            let habits = viewModel.habits(for: selectedCategory)
+                            
+                            if habits.isEmpty {
+                                // 👻 Empty State with Vibes (The "Void" Aesthetic)
+                                VStack(spacing: 10) {
+                                    Text("The void is empty.")
+                                        .font(Typography.quote)
+                                        .foregroundColor(Color.gray)
+                                    Text("Start creating your reality.")
+                                        .font(.caption)
+                                        .foregroundColor(Color.gray.opacity(0.6))
+                                }
+                                .padding(.top, 50)
+                            } else {
+                                // List Items
+                                ForEach(habits) { habit in
+                                    HabitRowView(habit: habit, viewModel: viewModel)
+                                        .padding(.horizontal, 16)
+                                        .contextMenu {
+                                            // Context Menu for quick actions
+                                            Button { habitToEdit = habit } label: { Label("Edit", systemImage: "pencil") }
+                                            Button { viewModel.updateHabitProgress(for: habit, value: 0) } label: { Label("Reset", systemImage: "arrow.counterclockwise") }
+                                            Button(role: .destructive) { viewModel.deleteHabit(habit) } label: { Label("Delete", systemImage: "trash") }
+                                        }
+                                        // Drag & Drop Modifiers
+                                        .onDrag {
+                                            self.draggedHabit = habit
+                                            return NSItemProvider(object: habit.id.uuidString as NSString)
+                                        }
+                                        .onDrop(of: [UTType.text], delegate: HabitDropDelegate(item: habit, viewModel: viewModel, draggedHabit: $draggedHabit))
+                                }
+                            }
+                        }
+                        .padding(.bottom, 20)
+                    }
                 }
             }
         }
+        // 🧠 Inject Context into ViewModel on Appear
+        // This connects the UI to the Database
+        .onAppear { viewModel.setContext(modelContext) }
+        
+        // Sheets (Modals)
         .sheet(isPresented: $isShowingAddSheet) { AddHabitSheet(viewModel: viewModel) }
         .sheet(item: $habitToEdit) { habit in AddHabitSheet(viewModel: viewModel, editingHabit: habit) }
     }
@@ -105,6 +158,7 @@ struct MainDashboardView: View {
 // MARK: - Drag & Drop Delegate
 
 /// Handles the logic for reordering habits via drag and drop.
+/// Now compatible with the Class-based Habit model (SwiftData).
 struct HabitDropDelegate: DropDelegate {
     let item: Habit
     var viewModel: HabitListViewModel
