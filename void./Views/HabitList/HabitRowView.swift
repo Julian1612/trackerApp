@@ -3,26 +3,38 @@ import SwiftUI
 struct HabitRowView: View {
     let habit: Habit
     @ObservedObject var viewModel: HabitListViewModel
-    @State private var isShowingLogSheet = false
 
+    // 🔥 FIX: Kein State mehr für das Sheet, wir brauchen das Popup nicht mehr.
+    
     var body: some View {
-        HStack(spacing: 12) { // Spacing etwas verringert für kompakteren Look
+        HStack(spacing: 12) {
             Button(action: {
+                // Direkte Interaktion ohne Fenster
+                let newValue: Double
+                
                 if habit.type == .checkmark {
-                    let newValue = habit.currentValue >= habit.goalValue ? 0.0 : 1.0
-                    viewModel.updateHabitProgress(for: habit, value: newValue)
+                    // Checkmark Logik: Toggle 0 oder 1
+                    newValue = habit.currentValue >= habit.goalValue ? 0.0 : 1.0
                 } else {
-                    isShowingLogSheet = true
+                    // Anzahl Logik: Einfach +1 hochzählen.
+                    // Wenn Ziel erreicht, resettet der nächste Klick auf 0.
+                    newValue = habit.currentValue >= habit.goalValue ? 0.0 : habit.currentValue + 1.0
                 }
+                
+                // Vibrations-Feedback für besseren Vibe
+                let impactMed = UIImpactFeedbackGenerator(style: .medium)
+                impactMed.impactOccurred()
+                
+                viewModel.updateHabitProgress(for: habit, value: newValue)
             }) {
                 HabitIconComponent(habit: habit)
             }
             
-            VStack(alignment: .leading, spacing: 0) { // Spacing 0, damit Titel & Kategorie kleben
+            VStack(alignment: .leading, spacing: 0) {
                 Text(habit.title)
                     .font(.system(size: 16, weight: .semibold))
                 Text(habit.category)
-                    .font(.system(size: 11)) // Schrift etwas kleiner für bessere Hierarchie
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
             
@@ -37,13 +49,10 @@ struct HabitRowView: View {
                     .foregroundColor(.black)
             }
         }
-        // 🔥 FIX: Padding massiv reduziert (von 12 auf 6)
         .padding(.vertical, 6)
         .padding(.horizontal, 16)
         .background(Color.white)
         .cornerRadius(12)
-        .sheet(isPresented: $isShowingLogSheet) {
-            QuickLogSheet(habit: habit, viewModel: viewModel)
-        }
+        // 🔥 FIX: .sheet modifier komplett entfernt. Bye bye Popup! 👋
     }
 }
