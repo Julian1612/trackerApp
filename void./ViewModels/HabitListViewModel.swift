@@ -53,8 +53,6 @@ class HabitListViewModel: ObservableObject {
         
         habit.currentValue += value
         
-        // Logik für Persistence:
-        // Falls du ActivityLog noch nicht erstellt hast, kommentiere die nächsten 2 Zeilen aus:
         let newLog = ActivityLog(habitID: habit.id, date: Date(), value: value)
         context.insert(newLog)
         
@@ -69,11 +67,15 @@ class HabitListViewModel: ObservableObject {
     }
     
     func updateHabit(_ updatedHabit: Habit) {
+        // ✨ Trigger Notification Reschedule
+        NotificationManager.shared.scheduleNotifications(for: updatedHabit)
+        
         saveContext()
         fetchHabits()
     }
     
-    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime) {
+    /// Enhanced addHabit to include reminders
+    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime, reminders: [HabitReminder]) {
         guard let context = modelContext else { return }
         let maxOrder = habits.map { $0.sortOrder }.max() ?? 0
         
@@ -81,12 +83,23 @@ class HabitListViewModel: ObservableObject {
             title: title, emoji: emoji, type: type, currentValue: 0, goalValue: goal, unit: unit,
             recurrence: recurrence, frequency: Array(days), category: category, routineTime: routineTime, sortOrder: maxOrder + 1
         )
+        
+        // Attach reminders
+        newHabit.reminders = reminders
+        
         context.insert(newHabit)
         saveContext()
+        
+        // ✨ Schedule Notifications
+        NotificationManager.shared.scheduleNotifications(for: newHabit)
+        
         fetchHabits()
     }
     
     func deleteHabit(_ habit: Habit) {
+        // ✨ Clean up notifications
+        NotificationManager.shared.cancelNotifications(for: habit)
+        
         modelContext?.delete(habit)
         saveContext()
         fetchHabits()
@@ -103,7 +116,7 @@ class HabitListViewModel: ObservableObject {
         saveContext()
     }
     
-    // MARK: - Filtering Logic (RENAMED TO FIX BUG 🚨)
+    // MARK: - Filtering Logic
     
     func getVisibleHabits(for category: String) -> [Habit] {
         let filtered: [Habit]
@@ -187,6 +200,7 @@ class HabitListViewModel: ObservableObject {
     }
     
     private func createSampleHabits() {
+        // Updated for new init signature without old reminder params
         guard let context = modelContext else { return }
         let s1 = Habit(title: "Drink Water", emoji: "💧", type: .value, goalValue: 8, unit: "Glasses", category: "Health", routineTime: .morning, sortOrder: 0)
         let s2 = Habit(title: "Read", emoji: "📖", type: .value, goalValue: 10, unit: "Pages", category: "Mindset", routineTime: .evening, sortOrder: 1)

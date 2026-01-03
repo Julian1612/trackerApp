@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AddHabitSheet: View {
     @Environment(\.dismiss) var dismiss
-    @ObservedObject var viewModel: HabitListViewModel // Kein $ hier nutzen!
+    @ObservedObject var viewModel: HabitListViewModel
     var editingHabit: Habit?
 
     // MARK: - State Properties
@@ -14,6 +14,10 @@ struct AddHabitSheet: View {
     @State private var goalValue = 1.0
     @State private var unit = "Times"
     @State private var showDeleteAlert = false
+    
+    // ✨ Notification State
+    // Temporary holder for reminders before we save
+    @State private var tempReminders: [HabitReminder] = []
 
     init(viewModel: HabitListViewModel, editingHabit: Habit? = nil) {
         self.viewModel = viewModel
@@ -27,6 +31,8 @@ struct AddHabitSheet: View {
             _selectedType = State(initialValue: habit.type)
             _goalValue = State(initialValue: habit.goalValue)
             _unit = State(initialValue: habit.unit)
+            // Load existing reminders
+            _tempReminders = State(initialValue: habit.reminders)
         }
     }
 
@@ -48,7 +54,6 @@ struct AddHabitSheet: View {
                     
                     VStack(alignment: .leading, spacing: 10) {
                         TextField("Category", text: $category)
-                        // Optional: Category Scroller hier...
                     }
                 }
                 
@@ -74,6 +79,47 @@ struct AddHabitSheet: View {
                                 .keyboardType(.decimalPad)
                             TextField("Unit", text: $unit)
                         }
+                    }
+                }
+                
+                // ✨ REMINDERS SECTION
+                Section(header: Text("Reminders")) {
+                    ForEach($tempReminders) { $reminder in
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                DatePicker("Time", selection: $reminder.time, displayedComponents: .hourAndMinute)
+                                    .labelsHidden()
+                                Toggle("", isOn: $reminder.isEnabled)
+                                    .labelsHidden()
+                            }
+                            
+                            if reminder.isEnabled {
+                                Toggle("Custom Message", isOn: $reminder.isCustomMessage)
+                                    .font(.caption)
+                                    .tint(.black)
+                                
+                                if reminder.isCustomMessage {
+                                    TextField("Enter motivational quote...", text: Binding(
+                                        get: { reminder.customMessage ?? "" },
+                                        set: { reminder.customMessage = $0 }
+                                    ))
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+                                } else {
+                                    Text("✨ Using rotating vibe check messages")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                        .italic()
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .onDelete(perform: deleteReminder)
+                    
+                    Button(action: addReminder) {
+                        Label("Add Reminder", systemImage: "bell.badge.plus")
+                            .font(.system(size: 14, weight: .medium))
                     }
                 }
                 
@@ -106,6 +152,20 @@ struct AddHabitSheet: View {
     }
 
     // MARK: - Logic
+    
+    private func addReminder() {
+        withAnimation {
+            // Default: 9:00 AM, Vibe Mode (Standard messages)
+            let defaultDate = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+            let newReminder = HabitReminder(time: defaultDate, isEnabled: true, isCustomMessage: false)
+            tempReminders.append(newReminder)
+        }
+    }
+    
+    private func deleteReminder(at offsets: IndexSet) {
+        tempReminders.remove(atOffsets: offsets)
+    }
+    
     private func saveHabit() {
         if let habit = editingHabit {
             // Update
@@ -117,13 +177,16 @@ struct AddHabitSheet: View {
             habit.goalValue = goalValue
             habit.unit = selectedType == .checkmark ? "" : unit
             
-            // 🚨 HIER WAR DER CALL: Jetzt funktioniert er, weil ViewModel gefixt ist.
+            // Update reminders (SwiftData handles the relationship magic)
+            habit.reminders = tempReminders
+            
             viewModel.updateHabit(habit)
         } else {
             // Create
             viewModel.addHabit(
                 title: title, emoji: emoji, type: selectedType, goal: goalValue, unit: unit,
-                recurrence: .daily, days: [1,2,3,4,5,6,7], category: category, routineTime: routineTime
+                recurrence: .daily, days: [1,2,3,4,5,6,7], category: category, routineTime: routineTime,
+                reminders: tempReminders // Pass reminders here
             )
         }
     }

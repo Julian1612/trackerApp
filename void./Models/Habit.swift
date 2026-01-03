@@ -40,8 +40,14 @@ final class Habit: Identifiable {
     // Configuration
     var recurrence: HabitRecurrence
     var frequency: [Int] // Changed from Set to Array for better persistence stability
-    var reminderTime: Date?
-    var notificationEnabled: Bool
+    
+    // 🗑️ REMOVED: Old simple notification fields
+    // var reminderTime: Date?
+    // var notificationEnabled: Bool
+    
+    // ✨ NEW: Relationship to multiple reminders
+    @Relationship(deleteRule: .cascade) var reminders: [HabitReminder] = []
+    
     var category: String
     var routineTime: RoutineTime
     
@@ -63,8 +69,6 @@ final class Habit: Identifiable {
          unit: String,
          recurrence: HabitRecurrence = .daily,
          frequency: [Int] = [1,2,3,4,5,6,7],
-         reminderTime: Date? = nil,
-         notificationEnabled: Bool = false,
          category: String,
          routineTime: RoutineTime,
          sortOrder: Int) {
@@ -78,8 +82,6 @@ final class Habit: Identifiable {
         self.unit = unit
         self.recurrence = recurrence
         self.frequency = frequency
-        self.reminderTime = reminderTime
-        self.notificationEnabled = notificationEnabled
         self.category = category
         self.routineTime = routineTime
         self.sortOrder = sortOrder

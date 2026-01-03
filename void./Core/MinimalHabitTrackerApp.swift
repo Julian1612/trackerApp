@@ -8,12 +8,18 @@ struct VoidApp: App {
     
     init() {
         do {
+            // ✨ Schema Update: Include HabitReminder
             let schema = Schema([
                 Habit.self,
+                HabitReminder.self
             ])
             let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             
             container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+            
+            // ✨ Ask for permission nicely
+            NotificationManager.shared.requestAuthorization()
+            
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
