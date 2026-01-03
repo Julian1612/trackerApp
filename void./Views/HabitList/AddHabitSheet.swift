@@ -15,8 +15,12 @@ struct AddHabitSheet: View {
     @State private var unit = "Times"
     @State private var showDeleteAlert = false
     
+    // ✨ Frequency / Recurrence State
+    @State private var recurrence: HabitRecurrence = .daily
+    // 1 = Sun, 2 = Mon, etc. (Calendar standard)
+    @State private var selectedWeekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7]
+    
     // ✨ Notification State
-    // Temporary holder for reminders before we save
     @State private var tempReminders: [HabitReminder] = []
 
     init(viewModel: HabitListViewModel, editingHabit: Habit? = nil) {
@@ -31,6 +35,11 @@ struct AddHabitSheet: View {
             _selectedType = State(initialValue: habit.type)
             _goalValue = State(initialValue: habit.goalValue)
             _unit = State(initialValue: habit.unit)
+            
+            // Load recurrence
+            _recurrence = State(initialValue: habit.recurrence)
+            _selectedWeekdays = State(initialValue: Set(habit.frequency))
+            
             // Load existing reminders
             _tempReminders = State(initialValue: habit.reminders)
         }
@@ -39,6 +48,7 @@ struct AddHabitSheet: View {
     var body: some View {
         NavigationView {
             Form {
+                // MARK: - Details
                 Section(header: Text("Details")) {
                     HStack(spacing: 15) {
                         TextField("Emoji", text: $emoji)
@@ -48,7 +58,7 @@ struct AddHabitSheet: View {
                             .cornerRadius(10)
                             .multilineTextAlignment(.center)
                         
-                        TextField("What do you want to track?", text: $title)
+                        TextField("What needs to be done?", text: $title)
                             .font(.body)
                     }
                     
@@ -57,7 +67,8 @@ struct AddHabitSheet: View {
                     }
                 }
                 
-                Section(header: Text("Frequency")) {
+                // MARK: - Tagesabschnitt (Renamed from Frequency)
+                Section(header: Text("Tagesabschnitt")) {
                     Picker("When?", selection: $routineTime) {
                         ForEach(RoutineTime.allCases) { time in
                             Text(time.rawValue).tag(time)
@@ -65,7 +76,34 @@ struct AddHabitSheet: View {
                     }
                     .pickerStyle(.segmented)
                 }
+                
+                // MARK: - Real Frequency (New Section)
+                Section(header: Text("Frequency")) {
+                    Picker("Repeat", selection: $recurrence) {
+                        ForEach(HabitRecurrence.allCases) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    
+                    if recurrence == .weekly {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Active Days")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            
+                            HStack(spacing: 0) {
+                                ForEach(1...7, id: \.self) { day in
+                                    WeekdayButton(dayIndex: day, isSelected: selectedWeekdays.contains(day)) {
+                                        toggleDay(day)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
 
+                // MARK: - Goal
                 Section(header: Text("Goal")) {
                     Picker("Type", selection: $selectedType) {
                         Text("Checkmark").tag(HabitType.checkmark)
@@ -82,7 +120,7 @@ struct AddHabitSheet: View {
                     }
                 }
                 
-                // ✨ REMINDERS SECTION
+                // MARK: - Reminders
                 Section(header: Text("Reminders")) {
                     ForEach($tempReminders) { $reminder in
                         VStack(alignment: .leading, spacing: 12) {
@@ -153,9 +191,19 @@ struct AddHabitSheet: View {
 
     // MARK: - Logic
     
+    private func toggleDay(_ day: Int) {
+        if selectedWeekdays.contains(day) {
+            // Prevent removing the last day (gotta do something at least once, right?)
+            if selectedWeekdays.count > 1 {
+                selectedWeekdays.remove(day)
+            }
+        } else {
+            selectedWeekdays.insert(day)
+        }
+    }
+    
     private func addReminder() {
         withAnimation {
-            // Default: 9:00 AM, Vibe Mode (Standard messages)
             let defaultDate = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
             let newReminder = HabitReminder(time: defaultDate, isEnabled: true, isCustomMessage: false)
             tempReminders.append(newReminder)
@@ -167,6 +215,21 @@ struct AddHabitSheet: View {
     }
     
     private func saveHabit() {
+        // Final frequency validation
+        var finalFrequency: [Int]
+        
+        switch recurrence {
+        case .daily:
+            finalFrequency = [1, 2, 3, 4, 5, 6, 7]
+        case .weekly:
+            finalFrequency = Array(selectedWeekdays)
+        case .monthly:
+            // Placeholder: "1" means just needed once a month logically,
+            // or we could track specific day of month later.
+            // keeping it simple for now.
+            finalFrequency = [1]
+        }
+        
         if let habit = editingHabit {
             // Update
             habit.title = title
@@ -177,17 +240,54 @@ struct AddHabitSheet: View {
             habit.goalValue = goalValue
             habit.unit = selectedType == .checkmark ? "" : unit
             
-            // Update reminders (SwiftData handles the relationship magic)
+            // Update Frequency stuff
+            habit.recurrence = recurrence
+            habit.frequency = finalFrequency
+            
             habit.reminders = tempReminders
             
             viewModel.updateHabit(habit)
         } else {
             // Create
             viewModel.addHabit(
-                title: title, emoji: emoji, type: selectedType, goal: goalValue, unit: unit,
-                recurrence: .daily, days: [1,2,3,4,5,6,7], category: category, routineTime: routineTime,
-                reminders: tempReminders // Pass reminders here
+                title: title,
+                emoji: emoji,
+                type: selectedType,
+                goal: goalValue,
+                unit: unit,
+                recurrence: recurrence,
+                days: Set(finalFrequency),
+                category: category,
+                routineTime: routineTime,
+                reminders: tempReminders
             )
         }
+    }
+}
+
+// MARK: - Helper Views
+
+/// A cute little button for weekdays.
+struct WeekdayButton: View {
+    let dayIndex: Int
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var label: String {
+        let formatter = DateFormatter()
+        // Returns "S", "M", "T", etc.
+        return formatter.veryShortWeekdaySymbols[dayIndex - 1]
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity, minHeight: 35)
+                .background(isSelected ? Color.black : Color.gray.opacity(0.1))
+                .foregroundColor(isSelected ? .white : .primary)
+                .clipShape(Rectangle()) // Makes them touch like segments
+        }
+        .buttonStyle(.plain)
     }
 }

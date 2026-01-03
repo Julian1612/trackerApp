@@ -39,11 +39,7 @@ final class Habit: Identifiable {
     
     // Configuration
     var recurrence: HabitRecurrence
-    var frequency: [Int] // Changed from Set to Array for better persistence stability
-    
-    // 🗑️ REMOVED: Old simple notification fields
-    // var reminderTime: Date?
-    // var notificationEnabled: Bool
+    var frequency: [Int] // Stores weekdays: 1=Sun, 2=Mon, ..., 7=Sat (Calendar Standard)
     
     // ✨ NEW: Relationship to multiple reminders
     @Relationship(deleteRule: .cascade) var reminders: [HabitReminder] = []
