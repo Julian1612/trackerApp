@@ -1,10 +1,3 @@
-//
-//  HabitIconComponent.swift
-//  void.
-//
-//  Created by Julian Schneider on 02.01.26.
-//
-
 import SwiftUI
 
 struct HabitIconComponent: View {
@@ -13,17 +6,20 @@ struct HabitIconComponent: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(ColorPalette.primary, lineWidth: 1.2) // Kreis-Umriss
+                .stroke(ColorPalette.primary, lineWidth: 1.2) // Minimalistischer Kreis
             
-            if habit.type == .duration {
-                Circle() // Fortschritts-Ring
-                    .trim(from: 0, to: habit.currentValue / habit.goalValue)
+            // 🔥 FIX: Wir prüfen auf den neuen Typen .value
+            // Der Fehler "ContinuousClock" verschwindet, wenn wir sauber auf HabitType prüfen
+            if habit.type == HabitType.value {
+                Circle() // Der Fortschritts-Ring für Dauer/Zähler
+                    .trim(from: 0, to: CGFloat(habit.currentValue / habit.goalValue))
                     .stroke(ColorPalette.primary, lineWidth: 2.5)
                     .rotationEffect(.degrees(-90))
             }
             
-            Image(systemName: habit.emoji)
-                .font(.system(size: 14))
+            // Hier wird das individuelle Emoji angezeigt 🎯
+            Text(habit.emoji)
+                .font(.system(size: 16))
         }
         .frame(width: 36, height: 36)
     }

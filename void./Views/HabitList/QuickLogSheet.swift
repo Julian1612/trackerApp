@@ -7,34 +7,52 @@ struct QuickLogSheet: View {
     @State private var valueToAdd: Double = 0
 
     var body: some View {
-        VStack(spacing: 25) {
-            // Header-Vibe
-            Text("\(habit.emoji) \(habit.title)")
-                .font(.title2)
-                .bold()
+        VStack(spacing: 30) {
+            // Header: Emoji & Titel
+            VStack(spacing: 8) {
+                Text(habit.emoji)
+                    .font(.system(size: 50))
+                Text(habit.title)
+                    .font(.headline)
+            }
+            .padding(.top)
             
-            // Das dicke Eingabefeld
-            HStack {
-                TextField("Wert", value: $valueToAdd, format: .number)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.center)
-                    .font(.system(size: 40, weight: .bold))
+            // Value Input
+            VStack(spacing: 15) {
+                HStack(alignment: .lastTextBaseline) {
+                    TextField("0", value: $valueToAdd, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.center)
+                        .font(.system(size: 60, weight: .bold, design: .rounded))
+                    
+                    Text(habit.unit)
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Quick Add Pills
+                HStack(spacing: 12) {
+                    ForEach([1, 5, 10], id: \.self) { amount in
+                        Button(action: { valueToAdd += Double(amount) }) {
+                            Text("+\(amount)")
+                                // 🔥 FIX: Hier war der Syntax-Fehler.
+                                // Korrekt ist: .font(.subheadline.weight(.medium))
+                                .font(.subheadline.weight(.medium))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Capsule().stroke(Color.black.opacity(0.1), lineWidth: 1))
+                                .foregroundColor(.black)
+                        }
+                    }
+                }
             }
             
-            // Quick-Adds für den Workflow
-            HStack(spacing: 20) {
-                Button("+5") { valueToAdd += 5 }
-                Button("+10") { valueToAdd += 10 }
-                Button("+20") { valueToAdd += 20 }
-            }
-            .buttonStyle(.bordered)
+            Spacer()
             
-            // Der Save-Button, der endlich funktioniert
+            // Save Button
             Button(action: {
-                // 🔥 FIXED: KEIN $ vor viewModel beim Aufruf der Funktion!
-                // Wir nehmen den aktuellen Wert und addieren das Neue dazu
                 let newValue = habit.currentValue + valueToAdd
-                $viewModel.updateHabitProgress(for: habit, value: newValue)
+                viewModel.updateHabitProgress(for: habit, value: newValue)
                 dismiss()
             }) {
                 Text("Speichern")
@@ -43,10 +61,12 @@ struct QuickLogSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(Color.black)
-                    .cornerRadius(12)
+                    .cornerRadius(15)
             }
+            .padding(.horizontal)
+            .padding(.bottom, 10)
         }
-        .padding()
         .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 }

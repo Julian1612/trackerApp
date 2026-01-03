@@ -14,6 +14,108 @@ class HabitListViewModel: ObservableObject {
     init() {
         self.heatmapData = Array(repeating: 0.0, count: 200)
         determineCurrentRoutineTime()
+        
+        // 🔥 Pre-Fill: Falls die Liste leer ist, füllen wir sie mit Leben
+        if habits.isEmpty {
+            createSampleHabits()
+        }
+    }
+    
+    private func createSampleHabits() {
+        let samples = [
+            // MORGENS
+            Habit(
+                title: "Wasser trinken",
+                emoji: "💧",
+                type: .value,
+                currentValue: 0,
+                goalValue: 1, // 1 Glas direkt nach dem Aufstehen
+                unit: "Glas",
+                recurrence: .daily,
+                frequency: [1,2,3,4,5,6,7],
+                reminderTime: nil,
+                notificationEnabled: false,
+                category: "Gesundheit",
+                routineTime: .morning
+            ),
+            Habit(
+                title: "Bett machen",
+                emoji: "🛏️",
+                type: .checkmark,
+                currentValue: 0,
+                goalValue: 1,
+                unit: "",
+                recurrence: .daily,
+                frequency: [1,2,3,4,5,6,7],
+                reminderTime: nil,
+                notificationEnabled: false,
+                category: "Mindset",
+                routineTime: .morning
+            ),
+            
+            // TAGSÜBER
+            Habit(
+                title: "Spaziergang",
+                emoji: "🚶",
+                type: .value,
+                currentValue: 0,
+                goalValue: 15, // 15 Minuten lüften
+                unit: "Min",
+                recurrence: .daily,
+                frequency: [1,2,3,4,5,6,7],
+                reminderTime: nil,
+                notificationEnabled: false,
+                category: "Gesundheit",
+                routineTime: .day
+            ),
+            Habit(
+                title: "Deep Work",
+                emoji: "💻",
+                type: .value,
+                currentValue: 0,
+                goalValue: 1, // 1 Session
+                unit: "Session",
+                recurrence: .daily,
+                frequency: [1,2,3,4,5,6,7], // Mo-Fr wäre [2,3,4,5,6]
+                reminderTime: nil,
+                notificationEnabled: false,
+                category: "Mindset",
+                routineTime: .day
+            ),
+            
+            // ABENDS
+            Habit(
+                title: "Lesen",
+                emoji: "📖",
+                type: .value,
+                currentValue: 0,
+                goalValue: 10, // 10 Seiten
+                unit: "Seiten",
+                recurrence: .daily,
+                frequency: [1,2,3,4,5,6,7],
+                reminderTime: nil,
+                notificationEnabled: false,
+                category: "Mindset",
+                routineTime: .evening
+            ),
+            Habit(
+                title: "Kein Handy",
+                emoji: "📵",
+                type: .checkmark,
+                currentValue: 0,
+                goalValue: 1,
+                unit: "",
+                recurrence: .daily,
+                frequency: [1,2,3,4,5,6,7],
+                reminderTime: nil,
+                notificationEnabled: false,
+                category: "Gesundheit",
+                routineTime: .evening
+            )
+        ]
+        
+        self.habits.append(contentsOf: samples)
+        calculateTodayScore()
     }
     
     func determineCurrentRoutineTime() {
@@ -31,9 +133,18 @@ class HabitListViewModel: ObservableObject {
         }
     }
 
+    // Für "+5", "+10" etc. (Addiert zum aktuellen Wert)
     func logProgress(for habit: Habit, value: Double) {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index].currentValue += value
+            calculateTodayScore()
+        }
+    }
+    
+    // Setzt einen absoluten Wert (Wichtig für den Save-Button im Sheet)
+    func updateHabitProgress(for habit: Habit, value: Double) {
+        if let index = habits.firstIndex(where: { $0.id == habit.id }) {
+            habits[index].currentValue = value
             calculateTodayScore()
         }
     }
@@ -77,15 +188,6 @@ class HabitListViewModel: ObservableObject {
         if let index = habits.firstIndex(where: { $0.id == updatedHabit.id }) {
             habits[index] = updatedHabit
             calculateTodayScore()
-        }
-    }
-    
-    // ... (innerhalb der HabitListViewModel Klasse)
-
-    func updateHabitProgress(for habit: Habit, value: Double) {
-        if let index = habits.firstIndex(where: { $0.id == habit.id }) {
-            habits[index].currentValue = value
-            calculateTodayScore() // 🔥 Triggert das Heatmap-Update!
         }
     }
 

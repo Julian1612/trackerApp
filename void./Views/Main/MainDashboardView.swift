@@ -41,10 +41,14 @@ struct MainDashboardView: View {
                 }
 
                 HStack(spacing: 12) {
+                    // Das dezente schwarze Plus
                     Button(action: { isShowingAddSheet = true }) {
-                        Image(systemName: "plus").frame(width: 40, height: 40)
-                            .background(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .light))
+                            .foregroundColor(.black)
+                            .frame(width: 40, height: 40)
                     }
+                    
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(viewModel.categories, id: \.self) { cat in
@@ -62,15 +66,17 @@ struct MainDashboardView: View {
             }
             .padding(.vertical, 15)
 
-            // Liste
+            // Liste der Habits
             List {
                 let currentHabits = viewModel.habits(for: selectedCategory)
                 ForEach(currentHabits) { habit in
                     HabitRowView(habit: habit, viewModel: viewModel)
                         .listRowSeparator(.hidden)
+                        // 🔥 FIX: Insets anpassen, um die Rows näher zusammen zu rücken
+                        // Top/Bottom auf 4 reduziert
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         .contextMenu {
                             Button { habitToEdit = habit } label: { Label("Bearbeiten", systemImage: "pencil") }
-                            // 🗑️ Löschen hier entfernt!
                             Button { viewModel.updateHabitProgress(for: habit, value: 0) } label: { Label("Reset", systemImage: "arrow.counterclockwise") }
                         }
                 }

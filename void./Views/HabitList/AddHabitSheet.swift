@@ -6,11 +6,12 @@ struct AddHabitSheet: View {
     var editingHabit: Habit?
 
     @State private var title = ""
+    @State private var emoji = "🎯"
     @State private var category = "Allgemein"
     @State private var routineTime: RoutineTime = .morning
     @State private var selectedType: HabitType = .checkmark
-    @State private var goal = 1.0
-    @State private var unit = "min"
+    @State private var goalValue = 1.0
+    @State private var unit = "Mal"
     @State private var showDeleteAlert = false
 
     init(viewModel: HabitListViewModel, editingHabit: Habit? = nil) {
@@ -18,10 +19,11 @@ struct AddHabitSheet: View {
         self.editingHabit = editingHabit
         if let habit = editingHabit {
             _title = State(initialValue: habit.title)
+            _emoji = State(initialValue: habit.emoji)
             _category = State(initialValue: habit.category)
             _routineTime = State(initialValue: habit.routineTime)
             _selectedType = State(initialValue: habit.type)
-            _goal = State(initialValue: habit.goalValue)
+            _goalValue = State(initialValue: habit.goalValue)
             _unit = State(initialValue: habit.unit)
         }
     }
@@ -30,11 +32,43 @@ struct AddHabitSheet: View {
         NavigationView {
             Form {
                 Section(header: Text("Details")) {
-                    TextField("Titel", text: $title)
-                    TextField("Kategorie", text: $category)
+                    HStack(spacing: 15) {
+                        TextField("Emoji", text: $emoji)
+                            .font(.system(size: 25))
+                            .frame(width: 45, height: 45)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(10)
+                            .multilineTextAlignment(.center)
+                        
+                        TextField("Was willst du tracken?", text: $title)
+                            .font(.body)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        TextField("Neue Kategorie", text: $category)
+                            .padding(.vertical, 5)
+                        
+                        // 🔥 Quick Category Select
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack {
+                                ForEach(viewModel.categories.filter { $0 != "Alle" }, id: \.self) { existingCat in
+                                    Button(action: { category = existingCat }) {
+                                        Text(existingCat)
+                                            .font(.caption)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(category == existingCat ? Color.black : Color.gray.opacity(0.1))
+                                            .foregroundColor(category == existingCat ? .white : .black)
+                                            .cornerRadius(15)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 5)
                 }
                 
-                Section(header: Text("Tageszeit")) {
+                Section(header: Text("Rhythmus")) {
                     Picker("Wann?", selection: $routineTime) {
                         ForEach(RoutineTime.allCases) { time in
                             Text(time.rawValue).tag(time)
@@ -43,48 +77,75 @@ struct AddHabitSheet: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section(header: Text("Ziel")) {
-                    Picker("Typ", selection: $selectedType) {
-                        Text("Check").tag(HabitType.checkmark)
-                        Text("Dauer").tag(HabitType.duration)
-                        Text("Zähler").tag(HabitType.counter)
+                Section(header: Text("Ziel setzen")) {
+                    Picker("Modus", selection: $selectedType) {
+                        Text("Checkmark").tag(HabitType.checkmark)
+                        Text("Anzahl").tag(HabitType.value)
                     }
                     .pickerStyle(.segmented)
+                    
+                    if selectedType == .value {
+                        HStack {
+                            TextField("Ziel (z.B. 30)", value: $goalValue, format: .number)
+                                .keyboardType(.decimalPad)
+                            Divider().frame(height: 20)
+                            TextField("Einheit (Min, Liter...)", text: $unit)
+                        }
+                        .padding(.vertical, 5)
+                    }
                 }
 
                 if editingHabit != nil {
-                    Section {
-                        Button("Routine löschen", role: .destructive) {
-                            showDeleteAlert = true
-                        }
-                    }
+                    Button("Routine löschen", role: .destructive) { showDeleteAlert = true }
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
-            .navigationTitle(editingHabit == nil ? "Neue Routine" : "Bearbeiten")
+            .navigationTitle(editingHabit == nil ? "Starten" : "Anpassen")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Speichern") {
-                        if let habit = editingHabit {
-                            var updated = habit
-                            updated.title = title
-                            updated.category = category
-                            updated.routineTime = routineTime
-                            viewModel.updateHabit(updated)
-                        } else {
-                            viewModel.addHabit(title: title, emoji: "🎯", type: selectedType, goal: goal, unit: unit, recurrence: .daily, days: [1,2,3,4,5,6,7], category: category, routineTime: routineTime)
-                        }
+                    Button("Fertig") {
+                        saveHabit()
                         dismiss()
                     }
+                    .fontWeight(.bold)
+                    .foregroundColor(.black)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }.foregroundColor(.gray)
                 }
             }
             .alert("Löschen?", isPresented: $showDeleteAlert) {
-                Button("Löschen", role: .destructive) {
-                    if let habit = editingHabit {
-                        viewModel.deleteHabit(habit)
-                        dismiss()
-                    }
+                Button("Ja, weg damit", role: .destructive) {
+                    if let habit = editingHabit { viewModel.deleteHabit(habit); dismiss() }
                 }
             }
+        }
+    }
+
+    private func saveHabit() {
+        if let habit = editingHabit {
+            var updated = habit
+            updated.title = title
+            updated.emoji = emoji
+            updated.category = category
+            updated.routineTime = routineTime
+            updated.type = selectedType
+            updated.goalValue = goalValue
+            updated.unit = selectedType == .checkmark ? "" : unit
+            viewModel.updateHabit(updated)
+        } else {
+            viewModel.addHabit(
+                title: title,
+                emoji: emoji,
+                type: selectedType,
+                goal: goalValue,
+                unit: selectedType == .checkmark ? "" : unit,
+                recurrence: .daily,
+                days: [1,2,3,4,5,6,7],
+                category: category,
+                routineTime: routineTime
+            )
         }
     }
 }

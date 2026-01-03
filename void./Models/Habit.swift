@@ -1,7 +1,7 @@
 import Foundation
 
 enum HabitType: String, Codable {
-    case counter, duration, checkmark
+    case value, checkmark // Dauer & Zähler sind jetzt eins: 'value'
 }
 
 enum HabitRecurrence: String, CaseIterable, Identifiable, Codable {
@@ -11,12 +11,10 @@ enum HabitRecurrence: String, CaseIterable, Identifiable, Codable {
     var id: String { self.rawValue }
 }
 
-// 🛠 FIX: "Jederzeit" (.any) ist hier komplett gelöscht.
 enum RoutineTime: String, CaseIterable, Identifiable, Codable {
     case morning = "Morgen"
     case day = "Tag"
     case evening = "Abend"
-    
     var id: String { self.rawValue }
 }
 
@@ -28,14 +26,10 @@ struct Habit: Identifiable {
     var currentValue: Double
     var goalValue: Double
     var unit: String
-    
-    // Konfiguration
     var recurrence: HabitRecurrence
     var frequency: Set<Int>
     var reminderTime: Date?
     var notificationEnabled: Bool
     var category: String
-    
-    // Wann soll das Habit erledigt werden?
     var routineTime: RoutineTime
 }
