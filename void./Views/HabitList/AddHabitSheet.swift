@@ -15,6 +15,9 @@ struct AddHabitSheet: View {
     @State private var unit = "Times"
     @State private var showDeleteAlert = false
     
+    // ✨ Motivation State
+    @State private var motivationText = ""
+    
     // ✨ Frequency / Recurrence State
     @State private var recurrence: HabitRecurrence = .daily
     // 1 = Sun, 2 = Mon, etc. (Calendar standard)
@@ -40,6 +43,9 @@ struct AddHabitSheet: View {
             _recurrence = State(initialValue: habit.recurrence)
             _selectedWeekdays = State(initialValue: Set(habit.frequency))
             
+            // ✨ Load Motivation
+            _motivationText = State(initialValue: habit.motivationText ?? "")
+            
             // Load existing reminders
             _tempReminders = State(initialValue: habit.reminders)
         }
@@ -64,6 +70,20 @@ struct AddHabitSheet: View {
                     
                     VStack(alignment: .leading, spacing: 10) {
                         TextField("Category", text: $category)
+                    }
+                }
+                
+                // MARK: - Motivation / Affirmation (NEW ✨)
+                Section(header: Text("Motivation & Notes")) {
+                    ZStack(alignment: .topLeading) {
+                        if motivationText.isEmpty {
+                            Text("Write an affirmation or why you do this...")
+                                .foregroundColor(.gray.opacity(0.5))
+                                .padding(.top, 8)
+                                .padding(.leading, 5)
+                        }
+                        TextEditor(text: $motivationText)
+                            .frame(minHeight: 80)
                     }
                 }
                 
@@ -230,6 +250,10 @@ struct AddHabitSheet: View {
             finalFrequency = [1]
         }
         
+        // Clean string
+        let cleanMotivation = motivationText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalMotivation = cleanMotivation.isEmpty ? nil : cleanMotivation
+        
         if let habit = editingHabit {
             // Update
             habit.title = title
@@ -239,6 +263,9 @@ struct AddHabitSheet: View {
             habit.type = selectedType
             habit.goalValue = goalValue
             habit.unit = selectedType == .checkmark ? "" : unit
+            
+            // ✨ Update Motivation
+            habit.motivationText = finalMotivation
             
             // Update Frequency stuff
             habit.recurrence = recurrence
@@ -255,6 +282,7 @@ struct AddHabitSheet: View {
                 type: selectedType,
                 goal: goalValue,
                 unit: unit,
+                motivationText: finalMotivation, // ✨ Pass it
                 recurrence: recurrence,
                 days: Set(finalFrequency),
                 category: category,

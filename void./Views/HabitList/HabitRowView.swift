@@ -10,13 +10,16 @@ struct HabitRowView: View {
     @State private var valueToAdd: Double = 0
     @State private var isDragging = false
     
-    // 🌊 Ripple Effect State
+    // 穴 Ripple Effect State
     @State private var showRipple = false
+    
+    // ✨ Motivation Sheet State
+    @State private var isShowingMotivation = false
     
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // 🌑 BACKGROUND ACTION LAYER
+                // 倦 BACKGROUND ACTION LAYER
                 if isDragging && habit.type == .value {
                     ZStack(alignment: .leading) {
                         ColorPalette.primary // Uses Black/White depending on mode
@@ -34,7 +37,7 @@ struct HabitRowView: View {
                     }
                 }
                 
-                // ⚪️ FOREGROUND ROW
+                // 笞ｪｸFOREGROUND ROW
                 HStack(spacing: 12) {
                     // Tap Button
                     Button(action: {
@@ -51,6 +54,19 @@ struct HabitRowView: View {
                         Text(habit.category)
                             .font(Typography.categoryLabel)
                             .foregroundColor(ColorPalette.secondary)
+                    }
+                    
+                    // ✨ Motivation Icon (Only if text exists)
+                    if let motivation = habit.motivationText, !motivation.isEmpty {
+                        Button(action: { isShowingMotivation = true }) {
+                            Image(systemName: "text.quote") // Minimalist quote icon
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(ColorPalette.secondary)
+                                .frame(width: 30, height: 30)
+                                .background(Color.gray.opacity(0.1))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain) // Prevents row tap conflict
                     }
                     
                     Spacer()
@@ -73,7 +89,7 @@ struct HabitRowView: View {
                 .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
                 .offset(x: dragOffset)
                 
-                // 🌊 THE RIPPLE OVERLAY
+                // 穴 THE RIPPLE OVERLAY
                 if showRipple {
                     Circle()
                         .fill(ColorPalette.primary.opacity(0.2))
@@ -109,6 +125,13 @@ struct HabitRowView: View {
             )
         }
         .frame(height: 60)
+        // ✨ Sheet presentation for motivation
+        .sheet(isPresented: $isShowingMotivation) {
+            if let text = habit.motivationText {
+                MotivationView(text: text)
+                    .presentationDetents([.medium, .large])
+            }
+        }
     }
     
     // MARK: - Logic
@@ -153,7 +176,7 @@ struct HabitRowView: View {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
         
-        // Trigger Ripple Animation 🌊
+        // Trigger Ripple Animation 穴
         withAnimation(.easeOut(duration: 0.5)) {
             showRipple = true
         }

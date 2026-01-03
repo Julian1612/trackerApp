@@ -37,11 +37,15 @@ final class Habit: Identifiable {
     var goalValue: Double
     var unit: String
     
+    // ✨ NEW: Motivation / Affirmation Text
+    // Optional, because sometimes silence is the best affirmation. 🤫
+    var motivationText: String?
+    
     // Configuration
     var recurrence: HabitRecurrence
     var frequency: [Int] // Stores weekdays: 1=Sun, 2=Mon, ..., 7=Sat (Calendar Standard)
     
-    // ✨ NEW: Relationship to multiple reminders
+    // ✨ Relationship to multiple reminders
     @Relationship(deleteRule: .cascade) var reminders: [HabitReminder] = []
     
     var category: String
@@ -63,6 +67,7 @@ final class Habit: Identifiable {
          currentValue: Double = 0,
          goalValue: Double,
          unit: String,
+         motivationText: String? = nil, // 🆕 Added here
          recurrence: HabitRecurrence = .daily,
          frequency: [Int] = [1,2,3,4,5,6,7],
          category: String,
@@ -76,6 +81,7 @@ final class Habit: Identifiable {
         self.currentValue = currentValue
         self.goalValue = goalValue
         self.unit = unit
+        self.motivationText = motivationText
         self.recurrence = recurrence
         self.frequency = frequency
         self.category = category

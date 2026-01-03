@@ -52,7 +52,8 @@ class HabitListViewModel: ObservableObject {
         fetchHabits()
     }
     
-    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime, reminders: [HabitReminder]) {
+    // ✨ Updated to accept motivationText (with default nil for compatibility)
+    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, motivationText: String? = nil, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime, reminders: [HabitReminder]) {
         guard let context = modelContext else { return }
         let maxOrder = habits.map { $0.sortOrder }.max() ?? 0
         
@@ -63,6 +64,7 @@ class HabitListViewModel: ObservableObject {
             currentValue: 0,
             goalValue: goal,
             unit: unit,
+            motivationText: motivationText, // 🆕 Pass it through
             recurrence: recurrence,
             frequency: Array(days),
             category: category,
@@ -155,11 +157,6 @@ class HabitListViewModel: ObservableObject {
     }
     
     func calculateHistoricalHeatmap() {
-        // (Logic remains same as previous, just ensure it uses recurrence correctly)
-        // ... Shortened for brevity as logic was already in previous file upload ...
-        // Ensure you keep your existing calculateHistoricalHeatmap implementation!
-        
-        // Re-injecting the logic to be safe for copy-paste:
         guard let context = modelContext, !habits.isEmpty else { return }
         
         let descriptor = FetchDescriptor<ActivityLog>()
