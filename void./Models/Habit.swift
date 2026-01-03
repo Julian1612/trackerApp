@@ -1,7 +1,7 @@
 import Foundation
 
 enum HabitType: String, Codable {
-    case value, checkmark // Dauer & Zähler sind jetzt eins: 'value'
+    case value, checkmark
 }
 
 enum HabitRecurrence: String, CaseIterable, Identifiable, Codable {
@@ -26,10 +26,15 @@ struct Habit: Identifiable {
     var currentValue: Double
     var goalValue: Double
     var unit: String
+    
+    // Konfiguration
     var recurrence: HabitRecurrence
     var frequency: Set<Int>
     var reminderTime: Date?
     var notificationEnabled: Bool
     var category: String
     var routineTime: RoutineTime
+    
+    // 🔥 NEU: Damit merken wir uns die Position in der Liste
+    var sortOrder: Int
 }

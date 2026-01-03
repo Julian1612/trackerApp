@@ -14,107 +14,71 @@ class HabitListViewModel: ObservableObject {
     init() {
         self.heatmapData = Array(repeating: 0.0, count: 200)
         determineCurrentRoutineTime()
+        if habits.isEmpty { createSampleHabits() }
+    }
+    
+    func habits(for category: String) -> [Habit] {
+        let filtered: [Habit]
+        if category == "Alle" {
+            filtered = habits.filter { $0.routineTime == selectedRoutineTime }
+        } else {
+            filtered = habits.filter { $0.category == category }
+        }
+        return filtered.sorted { $0.sortOrder < $1.sortOrder }
+    }
+    
+    // 🔥 Robuste Move-Logik
+    func moveHabit(from sourceID: UUID, to destinationID: UUID) {
+        guard let fromIndex = habits.firstIndex(where: { $0.id == sourceID }),
+              let toIndex = habits.firstIndex(where: { $0.id == destinationID }) else { return }
         
-        // 🔥 Pre-Fill: Falls die Liste leer ist, füllen wir sie mit Leben
-        if habits.isEmpty {
-            createSampleHabits()
+        // Element entfernen und an neuer Stelle einfügen
+        let movedHabit = habits.remove(at: fromIndex)
+        habits.insert(movedHabit, at: toIndex)
+
+        // Neue Reihenfolge speichern
+        for (index, _) in habits.enumerated() {
+            habits[index].sortOrder = index
+        }
+    }
+
+    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime) {
+        let maxOrder = habits.map { $0.sortOrder }.max() ?? 0
+        let newHabit = Habit(
+            title: title, emoji: emoji, type: type, currentValue: 0, goalValue: goal, unit: unit,
+            recurrence: recurrence, frequency: days, reminderTime: nil, notificationEnabled: false,
+            category: category, routineTime: routineTime,
+            sortOrder: maxOrder + 1
+        )
+        DispatchQueue.main.async {
+            self.habits.append(newHabit)
+            self.calculateTodayScore()
         }
     }
     
-    private func createSampleHabits() {
-        let samples = [
-            // MORGENS
-            Habit(
-                title: "Wasser trinken",
-                emoji: "💧",
-                type: .value,
-                currentValue: 0,
-                goalValue: 1, // 1 Glas direkt nach dem Aufstehen
-                unit: "Glas",
-                recurrence: .daily,
-                frequency: [1,2,3,4,5,6,7],
-                reminderTime: nil,
-                notificationEnabled: false,
-                category: "Gesundheit",
-                routineTime: .morning
-            ),
-            Habit(
-                title: "Bett machen",
-                emoji: "🛏️",
-                type: .checkmark,
-                currentValue: 0,
-                goalValue: 1,
-                unit: "",
-                recurrence: .daily,
-                frequency: [1,2,3,4,5,6,7],
-                reminderTime: nil,
-                notificationEnabled: false,
-                category: "Mindset",
-                routineTime: .morning
-            ),
-            
-            // TAGSÜBER
-            Habit(
-                title: "Spaziergang",
-                emoji: "🚶",
-                type: .value,
-                currentValue: 0,
-                goalValue: 15, // 15 Minuten lüften
-                unit: "Min",
-                recurrence: .daily,
-                frequency: [1,2,3,4,5,6,7],
-                reminderTime: nil,
-                notificationEnabled: false,
-                category: "Gesundheit",
-                routineTime: .day
-            ),
-            Habit(
-                title: "Deep Work",
-                emoji: "💻",
-                type: .value,
-                currentValue: 0,
-                goalValue: 1, // 1 Session
-                unit: "Session",
-                recurrence: .daily,
-                frequency: [1,2,3,4,5,6,7], // Mo-Fr wäre [2,3,4,5,6]
-                reminderTime: nil,
-                notificationEnabled: false,
-                category: "Mindset",
-                routineTime: .day
-            ),
-            
-            // ABENDS
-            Habit(
-                title: "Lesen",
-                emoji: "📖",
-                type: .value,
-                currentValue: 0,
-                goalValue: 10, // 10 Seiten
-                unit: "Seiten",
-                recurrence: .daily,
-                frequency: [1,2,3,4,5,6,7],
-                reminderTime: nil,
-                notificationEnabled: false,
-                category: "Mindset",
-                routineTime: .evening
-            ),
-            Habit(
-                title: "Kein Handy",
-                emoji: "📵",
-                type: .checkmark,
-                currentValue: 0,
-                goalValue: 1,
-                unit: "",
-                recurrence: .daily,
-                frequency: [1,2,3,4,5,6,7],
-                reminderTime: nil,
-                notificationEnabled: false,
-                category: "Gesundheit",
-                routineTime: .evening
-            )
-        ]
-        
-        self.habits.append(contentsOf: samples)
+    func logProgress(for habit: Habit, value: Double) {
+        if let index = habits.firstIndex(where: { $0.id == habit.id }) {
+            habits[index].currentValue += value
+            calculateTodayScore()
+        }
+    }
+    
+    func updateHabitProgress(for habit: Habit, value: Double) {
+        if let index = habits.firstIndex(where: { $0.id == habit.id }) {
+            habits[index].currentValue = value
+            calculateTodayScore()
+        }
+    }
+    
+    func updateHabit(_ updatedHabit: Habit) {
+        if let index = habits.firstIndex(where: { $0.id == updatedHabit.id }) {
+            habits[index] = updatedHabit
+            calculateTodayScore()
+        }
+    }
+    
+    func deleteHabit(_ habit: Habit) {
+        habits.removeAll { $0.id == habit.id }
         calculateTodayScore()
     }
     
@@ -123,30 +87,6 @@ class HabitListViewModel: ObservableObject {
         if hour >= 5 && hour < 11 { selectedRoutineTime = .morning }
         else if hour >= 11 && hour < 18 { selectedRoutineTime = .day }
         else { selectedRoutineTime = .evening }
-    }
-    
-    func habits(for category: String) -> [Habit] {
-        if category == "Alle" {
-            return habits.filter { $0.routineTime == selectedRoutineTime }
-        } else {
-            return habits.filter { $0.category == category }
-        }
-    }
-
-    // Für "+5", "+10" etc. (Addiert zum aktuellen Wert)
-    func logProgress(for habit: Habit, value: Double) {
-        if let index = habits.firstIndex(where: { $0.id == habit.id }) {
-            habits[index].currentValue += value
-            calculateTodayScore()
-        }
-    }
-    
-    // Setzt einen absoluten Wert (Wichtig für den Save-Button im Sheet)
-    func updateHabitProgress(for habit: Habit, value: Double) {
-        if let index = habits.firstIndex(where: { $0.id == habit.id }) {
-            habits[index].currentValue = value
-            calculateTodayScore()
-        }
     }
     
     func calculateTodayScore() {
@@ -163,39 +103,26 @@ class HabitListViewModel: ObservableObject {
             }
         }
         
-        if activeHabits.isEmpty {
-            updateHeatmap(0.0)
-            return
-        }
-        
+        if activeHabits.isEmpty { updateHeatmap(0.0); return }
         let completedCount = activeHabits.filter { $0.currentValue >= $0.goalValue }.count
         let score = Double(completedCount) / Double(activeHabits.count)
         updateHeatmap(score)
     }
     
     private func updateHeatmap(_ score: Double) {
-        if !heatmapData.isEmpty {
-            heatmapData[heatmapData.count - 1] = score
-        }
+        if !heatmapData.isEmpty { heatmapData[heatmapData.count - 1] = score }
     }
 
-    func deleteHabit(_ habit: Habit) {
-        habits.removeAll { $0.id == habit.id }
+    private func createSampleHabits() {
+        let samples = [
+            Habit(title: "Wasser trinken", emoji: "💧", type: .value, currentValue: 0, goalValue: 1, unit: "Glas", recurrence: .daily, frequency: [1,2,3,4,5,6,7], reminderTime: nil, notificationEnabled: false, category: "Gesundheit", routineTime: .morning, sortOrder: 0),
+            Habit(title: "Bett machen", emoji: "🛏️", type: .checkmark, currentValue: 0, goalValue: 1, unit: "", recurrence: .daily, frequency: [1,2,3,4,5,6,7], reminderTime: nil, notificationEnabled: false, category: "Mindset", routineTime: .morning, sortOrder: 1),
+            Habit(title: "Spaziergang", emoji: "🚶", type: .value, currentValue: 0, goalValue: 15, unit: "Min", recurrence: .daily, frequency: [1,2,3,4,5,6,7], reminderTime: nil, notificationEnabled: false, category: "Gesundheit", routineTime: .day, sortOrder: 2),
+            Habit(title: "Deep Work", emoji: "💻", type: .value, currentValue: 0, goalValue: 1, unit: "Session", recurrence: .daily, frequency: [1,2,3,4,5,6,7], reminderTime: nil, notificationEnabled: false, category: "Mindset", routineTime: .day, sortOrder: 3),
+            Habit(title: "Lesen", emoji: "📖", type: .value, currentValue: 0, goalValue: 10, unit: "Seiten", recurrence: .daily, frequency: [1,2,3,4,5,6,7], reminderTime: nil, notificationEnabled: false, category: "Mindset", routineTime: .evening, sortOrder: 4),
+            Habit(title: "Kein Handy", emoji: "📵", type: .checkmark, currentValue: 0, goalValue: 1, unit: "", recurrence: .daily, frequency: [1,2,3,4,5,6,7], reminderTime: nil, notificationEnabled: false, category: "Gesundheit", routineTime: .evening, sortOrder: 5)
+        ]
+        self.habits.append(contentsOf: samples)
         calculateTodayScore()
-    }
-
-    func updateHabit(_ updatedHabit: Habit) {
-        if let index = habits.firstIndex(where: { $0.id == updatedHabit.id }) {
-            habits[index] = updatedHabit
-            calculateTodayScore()
-        }
-    }
-
-    func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime) {
-        let newHabit = Habit(title: title, emoji: emoji, type: type, currentValue: 0, goalValue: goal, unit: unit, recurrence: recurrence, frequency: days, reminderTime: nil, notificationEnabled: false, category: category, routineTime: routineTime)
-        DispatchQueue.main.async {
-            self.habits.append(newHabit)
-            self.calculateTodayScore()
-        }
     }
 }
