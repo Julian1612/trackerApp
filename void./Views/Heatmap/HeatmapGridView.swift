@@ -1,16 +1,11 @@
-//
-//  HeatmapGridView.swift
-//  void.
-//
-//  Created by Julian Schneider on 02.01.26.
-//
-
 import SwiftUI
 
+/// A grid view that displays a history of habit completion scores.
 struct HeatmapGridView: View {
     let data: [Double]
-    // 20 Spalten für die Darstellung von ca. 200 Tagen
-    let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 20)
+    
+    // 20 columns to show roughly 200 days of history
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 20)
     
     var body: some View {
         LazyVGrid(columns: columns, spacing: 4) {
@@ -18,6 +13,5 @@ struct HeatmapGridView: View {
                 HeatmapTile(score: data[index])
             }
         }
-        .padding()
     }
 }
