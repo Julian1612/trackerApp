@@ -1,10 +1,3 @@
-//
-//  ActivityData.swift
-//  void.
-//
-//  Created by Julian Schneider on 02.01.26.
-//
-
 import Foundation
 
 struct ActivityDay: Identifiable {

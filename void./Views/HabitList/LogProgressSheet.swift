@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// A sheet that allows users to manually log progress for a specific habit.
 struct LogProgressSheet: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var viewModel: HabitListViewModel
@@ -14,7 +15,7 @@ struct LogProgressSheet: View {
                 .padding(.top, 20)
             
             VStack(spacing: 20) {
-                TextField("Wert", value: $valueToAdd, format: .number)
+                TextField("Value", value: $valueToAdd, format: .number)
                     .font(.system(size: 40, weight: .bold))
                     .multilineTextAlignment(.center)
                     .keyboardType(.decimalPad)
@@ -31,11 +32,10 @@ struct LogProgressSheet: View {
             Spacer()
             
             Button(action: {
-                // 🔥 WICHTIG: KEIN $ vor viewModel!
                 viewModel.logProgress(for: habit, value: valueToAdd)
                 dismiss()
             }) {
-                Text("Speichern")
+                Text("Save")
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
