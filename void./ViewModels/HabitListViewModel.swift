@@ -34,9 +34,6 @@ class HabitListViewModel: ObservableObject {
         let descriptor = FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.sortOrder)])
         self.habits = (try? context.fetch(descriptor)) ?? []
         
-        if habits.isEmpty {
-            createSampleHabits()
-        }
         
         // Recalculate heatmap on fetch
         calculateHistoricalHeatmap()
@@ -206,15 +203,5 @@ class HabitListViewModel: ObservableObject {
         DispatchQueue.main.async {
             self.heatmapData = newHeatmap
         }
-    }
-    
-    private func createSampleHabits() {
-        guard let context = modelContext else { return }
-        let s1 = Habit(title: "Drink Water", emoji: "💧", type: .value, goalValue: 8, unit: "Glasses", recurrence: .daily, frequency: [1,2,3,4,5,6,7], category: "Health", routineTime: .morning, sortOrder: 0)
-        let s2 = Habit(title: "Read", emoji: "📖", type: .value, goalValue: 10, unit: "Pages", recurrence: .daily, frequency: [1,2,3,4,5,6,7], category: "Mindset", routineTime: .evening, sortOrder: 1)
-        context.insert(s1)
-        context.insert(s2)
-        try? context.save()
-        fetchHabits()
     }
 }
