@@ -9,6 +9,9 @@ class HabitListViewModel: ObservableObject {
     @Published var heatmapData: [Double] = []
     @Published var selectedRoutineTime: RoutineTime = .morning
     
+    // 🗑️ Combine Storage für unsere Timer & Observer
+    private var cancellables = Set<AnyCancellable>()
+    
     // MARK: - Computed Properties
     
     var categories: [String] {
@@ -21,19 +24,81 @@ class HabitListViewModel: ObservableObject {
     init() {
         self.heatmapData = Array(repeating: 0.0, count: 100)
         determineCurrentRoutineTime()
+        
+        // 🔥 Startet die Überwachung für den Tageswechsel
+        setupDayChangeObservers()
     }
 
     func setContext(_ context: ModelContext) {
         self.modelContext = context
         fetchHabits()
+        
+        // Initialer Check (falls App neu gestartet wird)
+        checkAndResetIfNewDay()
+        
         calculateHistoricalHeatmap()
     }
+    
+    // MARK: - Robust Daily Reset Logic 🔄
+    
+    private func setupDayChangeObservers() {
+        // 1. Check, wenn die App aus dem Hintergrund kommt
+        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+            .sink { [weak self] _ in
+                self?.checkAndResetIfNewDay()
+            }
+            .store(in: &cancellables)
+        
+        // 2. LIVE Check: Jede Sekunde prüfen, ob Mitternacht durch ist.
+        // Das garantiert, dass man den Reset um 00:00:00 live sieht.
+        Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.checkAndResetIfNewDay()
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func checkAndResetIfNewDay() {
+        let userDefaults = UserDefaults.standard
+        let lastResetKey = "LastResetDate"
+        
+        // Wann wurde zuletzt erfolgreich resettet?
+        let lastResetDate = userDefaults.object(forKey: lastResetKey) as? Date ?? Date.distantPast
+        
+        // Wenn das letzte Reset-Datum NICHT heute ist -> Reset durchführen!
+        if !Calendar.current.isDateInToday(lastResetDate) {
+            print("🕛 It's a new day! Resetting habits now.")
+            performLiveReset()
+            
+            // Merken, dass wir für heute (den neuen Tag) fertig sind
+            userDefaults.set(Date(), forKey: lastResetKey)
+        }
+    }
+    
+    private func performLiveReset() {
+        guard let context = modelContext else { return }
+        
+        // UI-Update mit Animation, damit man sieht, wie die Balken zurückgehen
+        withAnimation(.easeInOut(duration: 0.5)) {
+            for habit in habits {
+                habit.currentValue = 0
+            }
+        }
+        
+        // Speichern und UI refreshen
+        try? context.save()
+        
+        // Sicherstellen, dass die View die Änderung mitbekommt
+        fetchHabits()
+    }
+    
+    // MARK: - Standard Logic
     
     func fetchHabits() {
         guard let context = modelContext else { return }
         let descriptor = FetchDescriptor<Habit>(sortBy: [SortDescriptor(\.sortOrder)])
         self.habits = (try? context.fetch(descriptor)) ?? []
-        
         
         // Recalculate heatmap on fetch
         calculateHistoricalHeatmap()
@@ -49,7 +114,6 @@ class HabitListViewModel: ObservableObject {
         fetchHabits()
     }
     
-    // ✨ Updated to accept motivationText (with default nil for compatibility)
     func addHabit(title: String, emoji: String, type: HabitType, goal: Double, unit: String, motivationText: String? = nil, recurrence: HabitRecurrence, days: Set<Int>, category: String, routineTime: RoutineTime, reminders: [HabitReminder]) {
         guard let context = modelContext else { return }
         let maxOrder = habits.map { $0.sortOrder }.max() ?? 0
@@ -61,7 +125,7 @@ class HabitListViewModel: ObservableObject {
             currentValue: 0,
             goalValue: goal,
             unit: unit,
-            motivationText: motivationText, // 🆕 Pass it through
+            motivationText: motivationText,
             recurrence: recurrence,
             frequency: Array(days),
             category: category,
@@ -123,14 +187,11 @@ class HabitListViewModel: ObservableObject {
     func getVisibleHabits(for category: String) -> [Habit] {
         let filtered: [Habit]
         
-        // Time Filter logic needs to respect selectedRoutineTime
-        // But also check if habit is due today based on Frequency!
         let relevantHabits = habits.filter { habit in
             if habit.recurrence == .daily { return true }
-            if habit.recurrence == .monthly { return true } // Simplified
+            if habit.recurrence == .monthly { return true }
             if habit.recurrence == .weekly {
                 let weekday = Calendar.current.component(.weekday, from: Date())
-                // Calendar returns 1 for Sunday, but our Set uses same logic
                 return habit.frequency.contains(weekday)
             }
             return true
@@ -189,7 +250,6 @@ class HabitListViewModel: ObservableObject {
                     .reduce(0) { $0 + $1.value }
                 
                 let isToday = calendar.isDateInToday(date)
-                // If today, use current value from Habit model (realtime), else use logs
                 let totalValue = isToday ? max(habit.currentValue, habitLogsValue) : habitLogsValue
                 
                 if totalValue >= habit.goalValue {
